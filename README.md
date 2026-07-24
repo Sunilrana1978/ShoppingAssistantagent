@@ -138,6 +138,20 @@ ShoppingAssistantAgent/
 
 ---
 
+## 🛠️ CXAS Platform Architecture & Self-Contained Python Tools
+
+### 1. Isolated Google Cloud Execution Sandbox
+In **Gemini Enterprise for Customer Experience (CX Agent Studio / CES API)**, Python tools defined via `pythonFunction` run in an isolated execution sandbox hosted on Google Cloud.
+- **Self-Contained Tool Requirement**: Tool source files (`tools/<tool_name>/python_function/python_code.py`) MUST be self-contained and use standard Python libraries (`typing`, `json`, `datetime`, `random`, `math`). External local module imports (such as `from services...`) cause GCP's Python parser to fail with `400 Bad Request: No module named 'services'`, which prevents tools from being registered in Agent Studio.
+- **Embedded Mock Data**: Tools include inline mock data fallback structures for catalog, user profile, discount rates, cart memory, and feedback logging to ensure 100% standalone reliability on GCP while maintaining compatibility with local unit test suites.
+
+### 2. Automated Multi-Step Deployment Pipeline (`scripts/build_app.py`)
+Deploying an application via `python scripts/build_app.py --env <dev|staging|prod>` (or via GitHub Actions CD) executes a two-stage process:
+1. **Application ZIP Push (`cxas push`)**: Package and push the application manifest (`app.json`), agent configurations (`RootAgent`, `ShoppingAssistant`, `FeedbackAgent`), and instruction prompts (`instruction.txt`) to the target app path.
+2. **Tool Creation & Agent Binding Sync**: Programmatically compile each self-contained Python tool, register the tool resource on GCP, and bind tool lists to `ShoppingAssistant` (6 shopping tools) and `FeedbackAgent` (`submit_feedback`).
+
+---
+
 ## 🚀 Quick Start & Local Setup
 
 ### 1. Prerequisites
