@@ -1,8 +1,8 @@
 {
-  "environment": "dev",
+  "environment": "default",
   "gcp_project": "ecom-cx-agent",
   "location": "us",
-  "app_id": "shopping-assistant-app-dev",
+  "app_id": "shopping-assistant-app",
   "services": {
     "user_service": "mock",
     "catalog_service": "mock",

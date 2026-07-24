@@ -1,11 +1,12 @@
 {
   "environment": "prod",
-  "gcp_project": "cxas-shopping-prod",
-  "location": "us-central1",
+  "gcp_project": "ecom-cx-agent",
+  "location": "us",
   "app_id": "shopping-assistant-app-prod",
   "services": {
     "user_service": "mock",
     "catalog_service": "mock",
-    "cart_service": "mock"
+    "cart_service": "mock",
+    "feedback_service": "mock"
   }
 }
