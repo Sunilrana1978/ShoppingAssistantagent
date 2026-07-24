@@ -1,5 +1,4 @@
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -10,16 +9,27 @@ sys.path.insert(0, str(root))
 from cxas_scrapi import Apps, Agents
 
 def build_and_deploy_cxas(env: str):
-    env_file = root / "environments" / f"{env}.environment.json"
-    if not env_file.exists():
-        env_file = root / "environments" / "environment.json"
+    config_file = root / "gecx-config.toml"
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        import tomli as tomllib
 
-    with open(env_file, "r") as f:
-        env_config = json.load(f)
+    with open(config_file, "rb") as f:
+        config_data = tomllib.load(f)
 
-    project_id = env_config.get("gcp_project", "ecom-cx-agent")
-    location = env_config.get("location", "us")
-    app_id = env_config.get("app_id", "shopping-assistant-app")
+    default_config = config_data.get("default", {})
+    project_id = default_config.get("project_id", "ecom-cx-agent")
+    location = default_config.get("location", "us")
+    app_id = default_config.get("app_id", "shopping-assistant-app")
+
+    profiles = config_data.get("profiles", {})
+    profile_config = profiles.get(env, {}) if isinstance(profiles, dict) else {}
+    if isinstance(profile_config, dict):
+        project_id = profile_config.get("project_id", project_id)
+        location = profile_config.get("location", location)
+        app_id = profile_config.get("app_id", app_id)
+
     display_name = "ShoppingAssistantApp"
 
     print(f"🚀 Deploying to Gemini Enterprise for Customer Experience (CX Agent Studio)...")

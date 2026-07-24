@@ -1,0 +1,19 @@
+[default]
+project_id = "ecom-cx-agent"
+location = "us"
+app_id = "shopping-assistant-app"
+
+[default.services]
+user_service = "mock"
+catalog_service = "mock"
+cart_service = "mock"
+feedback_service = "mock"
+
+[profiles.dev]
+app_id = "shopping-assistant-app-dev"
+
+[profiles.staging]
+app_id = "shopping-assistant-app-staging"
+
+[profiles.prod]
+app_id = "shopping-assistant-app-prod"
