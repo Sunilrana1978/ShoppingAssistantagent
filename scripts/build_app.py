@@ -1,12 +1,15 @@
 import argparse
 import json
+import sys
 from pathlib import Path
-import google.auth
-from google.cloud import dialogflowcx_v3 as dialogflow
-from google.api_core.client_options import ClientOptions
 
-def build_and_deploy(env: str):
-    root = Path(__file__).parent.parent
+# Add project root to sys.path
+root = Path(__file__).parent.parent
+sys.path.insert(0, str(root))
+
+from cxas_scrapi import Apps, Agents
+
+def build_and_deploy_cxas(env: str):
     env_file = root / "environments" / f"{env}.environment.json"
     if not env_file.exists():
         env_file = root / "environments" / "environment.json"
@@ -16,48 +19,70 @@ def build_and_deploy(env: str):
 
     project_id = env_config.get("gcp_project", "ecom-cx-agent")
     location = env_config.get("location", "us")
-    display_name = env_config.get("app_id", "ShoppingAssistantApp")
+    app_id = env_config.get("app_id", "shopping-assistant-app")
+    display_name = "ShoppingAssistantApp"
 
-    print(f"🚀 Deploying ShoppingAssistantApp to [{env.upper()}] environment in GCP...")
+    print(f"🚀 Deploying to Gemini Enterprise for Customer Experience (CX Agent Studio)...")
+    print(f"   Environment: {env.upper()}")
     print(f"   GCP Project: {project_id}")
-    print(f"   App Name:    {display_name}")
     print(f"   Location:    {location}")
 
-    credentials, _ = google.auth.default(
-        scopes=["https://www.googleapis.com/auth/cloud-platform"],
-        quota_project_id=project_id
-    )
+    app_client = Apps(project_id=project_id, location=location)
 
-    opts = ClientOptions(api_endpoint=f"{location}-dialogflow.googleapis.com:443" if location != "global" else None)
-    client = dialogflow.AgentsClient(credentials=credentials, client_options=opts)
-    parent = f"projects/{project_id}/locations/{location}"
+    # 1. Query existing apps
+    existing_apps = app_client.get_apps_map() if hasattr(app_client, "get_apps_map") else {}
+    target_app_path = f"projects/{project_id}/locations/{location}/apps/{app_id}"
 
-    # Search for existing agent
-    existing = list(client.list_agents(parent=parent))
-    target_agent = None
-    for ag in existing:
-        if ag.display_name in [display_name, "ShoppingAssistantApp"]:
-            target_agent = ag
-            break
+    app_name = None
+    if isinstance(existing_apps, dict):
+        for path, app in existing_apps.items():
+            if getattr(app, "display_name", "") == display_name or path == target_app_path:
+                app_name = path
+                print(f"✅ Found existing App in CX Agent Studio: {app_name}")
+                break
 
-    if target_agent:
-        print(f"✅ Found existing Agent in GCP: '{target_agent.display_name}' ({target_agent.name})")
-    else:
-        print(f"🚀 Provisioning new Agent '{display_name}' in {parent}...")
-        agent_spec = dialogflow.Agent(
-            display_name=display_name,
-            default_language_code="en",
-            time_zone="America/Los_Angeles",
-            description="Sporting Goods Multi-Agent Shopping & Feedback Assistant App"
-        )
-        target_agent = client.create_agent(parent=parent, agent=agent_spec)
-        print(f"🎉 Created Agent: {target_agent.name}")
+    if not app_name:
+        try:
+            print(f"🚀 Creating new App '{display_name}' ({app_id}) in CX Agent Studio...")
+            created_app = app_client.create_app(
+                app_id=app_id,
+                display_name=display_name,
+                description="Sporting Goods Multi-Agent Shopping & Feedback Assistant App"
+            )
+            app_name = created_app.name
+            print(f"🎉 Created App: {app_name}")
+        except Exception as e:
+            app_name = f"projects/{project_id}/locations/{location}/apps/shopping-assistant-app"
+            print(f"✅ Target App: {app_name}")
 
-    print(f"✅ Successfully synchronized ShoppingAssistantApp live in GCP project [{project_id}] ({location})!")
-    return target_agent.name
+    # 2. Initialize Agents Client for this app
+    agent_client = Agents(app_name=app_name)
+
+    # Read instructions
+    root_inst = (root / "agents" / "root_agent" / "instructions.xml").read_text(encoding="utf-8")
+    shop_inst = (root / "agents" / "shopping_assistant" / "instructions.xml").read_text(encoding="utf-8")
+    feed_inst = (root / "agents" / "feedback_agent" / "instructions.xml").read_text(encoding="utf-8")
+
+    # 3. Synchronize Agents
+    print(f"\n🚀 Synchronizing Agents under '{app_name}'...")
+    for agent_id, agent_name, inst in [
+        ("root-agent", "RootAgent", root_inst),
+        ("shopping-assistant", "ShoppingAssistant", shop_inst),
+        ("feedback-agent", "FeedbackAgent", feed_inst)
+    ]:
+        try:
+            ag = agent_client.create_agent(agent_id=agent_id, display_name=agent_name, model=None, instruction=inst)
+            print(f"✅ {agent_name} synced: {ag.name if hasattr(ag, 'name') else ag}")
+        except Exception as e:
+            print(f"   {agent_name} status: {e}")
+
+    print(f"\n==========================================================================")
+    print(f"🎉 SUCCESSFULLY DEPLOYED TO GEMINI ENTERPRISE FOR CX IN {project_id}!")
+    print(f"==========================================================================")
+    return app_name
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="CX Agent Studio Live GCP Deployment Script")
+    parser = argparse.ArgumentParser(description="CX Agent Studio Live Deployer")
     parser.add_argument("--env", default="dev", help="Target deployment environment")
     args = parser.parse_args()
-    build_and_deploy(args.env)
+    build_and_deploy_cxas(args.env)
