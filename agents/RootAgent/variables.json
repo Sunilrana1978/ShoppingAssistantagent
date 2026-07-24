@@ -1,0 +1,13 @@
+{
+  "static": {
+    "app_name": "Sporting Goods Storefront"
+  },
+  "dynamic": {
+    "user_id": {
+      "type": "string"
+    },
+    "active_intent": {
+      "type": "string"
+    }
+  }
+}
