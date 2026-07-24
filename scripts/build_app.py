@@ -1,4 +1,5 @@
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
@@ -6,93 +7,45 @@ from pathlib import Path
 root = Path(__file__).parent.parent
 sys.path.insert(0, str(root))
 
-from cxas_scrapi import Apps, Agents
+def run_cli_command(args: list[str]):
+    # Try calling the CLI tool directly first
+    try:
+        subprocess.run(args, check=True)
+    except FileNotFoundError:
+        # If 'cxas' is not found, try running it as a python module
+        if args[0] == "cxas":
+            fallback_args = [sys.executable, "-m", "cxas_scrapi.cli"] + args[1:]
+            try:
+                subprocess.run(fallback_args, check=True)
+            except Exception as e:
+                print(f"❌ Failed to run 'cxas' CLI module: {e}", file=sys.stderr)
+                sys.exit(1)
+        else:
+            print(f"❌ Command not found: {args[0]}", file=sys.stderr)
+            sys.exit(1)
 
 def build_and_deploy_cxas(env: str):
-    config_file = root / "gecx-config.toml"
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        import tomli as tomllib
-
-    with open(config_file, "rb") as f:
-        config_data = tomllib.load(f)
-
-    default_config = config_data.get("default", {})
-    project_id = default_config.get("project_id", "ecom-cx-agent")
-    location = default_config.get("location", "us")
-    app_id = default_config.get("app_id", "shopping-assistant-app")
-
-    profiles = config_data.get("profiles", {})
-    profile_config = profiles.get(env, {}) if isinstance(profiles, dict) else {}
-    if isinstance(profile_config, dict):
-        project_id = profile_config.get("project_id", project_id)
-        location = profile_config.get("location", location)
-        app_id = profile_config.get("app_id", app_id)
-
-    display_name = "ShoppingAssistantApp"
-
     print(f"🚀 Deploying to Gemini Enterprise for Customer Experience (CX Agent Studio)...")
-    print(f"   Environment: {env.upper()}")
-    print(f"   GCP Project: {project_id}")
-    print(f"   Location:    {location}")
+    print(f"   Environment Profile: {env.upper()}")
 
-    app_client = Apps(project_id=project_id, location=location)
+    try:
+        # 1. Set the active profile in the workspace config
+        print(f"\n   Setting workspace profile to '{env}'...")
+        run_cli_command(["cxas", "workspace", "set", "--profile", env])
 
-    # 1. Query existing apps
-    existing_apps = app_client.get_apps_map() if hasattr(app_client, "get_apps_map") else {}
-    target_app_path = f"projects/{project_id}/locations/{location}/apps/{app_id}"
+        # 2. Push the application to CX Agent Studio
+        print(f"\n   Pushing application state (agents, instructions, tools, callbacks)...")
+        run_cli_command(["cxas", "push"])
 
-    app_name = None
-    if isinstance(existing_apps, dict):
-        for path, app in existing_apps.items():
-            if getattr(app, "display_name", "") == display_name or path == target_app_path:
-                app_name = path
-                print(f"✅ Found existing App in CX Agent Studio: {app_name}")
-                break
-
-    if not app_name:
-        try:
-            print(f"🚀 Creating new App '{display_name}' ({app_id}) in CX Agent Studio...")
-            created_app = app_client.create_app(
-                app_id=app_id,
-                display_name=display_name,
-                description="Sporting Goods Multi-Agent Shopping & Feedback Assistant App"
-            )
-            app_name = created_app.name
-            print(f"🎉 Created App: {app_name}")
-        except Exception as e:
-            app_name = f"projects/{project_id}/locations/{location}/apps/shopping-assistant-app"
-            print(f"✅ Target App: {app_name}")
-
-    # 2. Initialize Agents Client for this app
-    agent_client = Agents(app_name=app_name)
-
-    # Read instructions
-    root_inst = (root / "agents" / "root_agent" / "instructions.xml").read_text(encoding="utf-8")
-    shop_inst = (root / "agents" / "shopping_assistant" / "instructions.xml").read_text(encoding="utf-8")
-    feed_inst = (root / "agents" / "feedback_agent" / "instructions.xml").read_text(encoding="utf-8")
-
-    # 3. Synchronize Agents
-    print(f"\n🚀 Synchronizing Agents under '{app_name}'...")
-    for agent_id, agent_name, inst in [
-        ("root-agent", "RootAgent", root_inst),
-        ("shopping-assistant", "ShoppingAssistant", shop_inst),
-        ("feedback-agent", "FeedbackAgent", feed_inst)
-    ]:
-        try:
-            ag = agent_client.create_agent(agent_id=agent_id, display_name=agent_name, model=None, instruction=inst)
-            print(f"✅ {agent_name} synced: {ag.name if hasattr(ag, 'name') else ag}")
-        except Exception as e:
-            print(f"   {agent_name} status: {e}")
-
-    print(f"\n==========================================================================")
-    print(f"🎉 SUCCESSFULLY DEPLOYED TO GEMINI ENTERPRISE FOR CX IN {project_id}!")
-    print(f"==========================================================================")
-    return app_name
+        print(f"\n==========================================================================")
+        print(f"🎉 SUCCESSFULLY DEPLOYED TO GEMINI ENTERPRISE FOR CX IN PROFILE {env.upper()}!")
+        print(f"==========================================================================")
+    except Exception as e:
+        print(f"\n❌ Deployment failed: {e}", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CX Agent Studio Live Deployer")
-    parser.add_argument("--env", default="dev", help="Target deployment environment")
+    parser.add_argument("--env", default="dev", help="Target deployment environment profile")
     args = parser.parse_args()
     build_and_deploy_cxas(args.env)
