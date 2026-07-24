@@ -11,14 +11,21 @@ def validate_project():
         import os
         pkg_dir = os.path.dirname(cxas_scrapi.__file__)
         print(f"DEBUG: cxas_scrapi package dir: {pkg_dir}")
-        print("DEBUG: files in package:")
+        print("DEBUG: Searching for configuration patterns in package files...")
+        terms = ["instructions", "root_agent", "rootAgent", "default_agent", "sub_agents", "subAgents", "global_tools", "globalTools", "instructions_file", "instructionsFile"]
         for r, d, files in os.walk(pkg_dir):
             for f in files:
-                rel = os.path.relpath(os.path.join(r, f), pkg_dir)
-                if any(x in rel for x in ["schema", "model", "config", "app", "agent"]):
-                    print(f"  - {rel}")
+                if f.endswith(".py"):
+                    path = os.path.join(r, f)
+                    with open(path, "r", encoding="utf-8", errors="ignore") as file:
+                        lines = file.readlines()
+                    for idx, line in enumerate(lines):
+                        for term in terms:
+                            if term in line:
+                                rel = os.path.relpath(path, pkg_dir)
+                                print(f"  [{rel}:{idx+1}] {line.strip()}")
     except Exception as ex:
-        print(f"DEBUG: failed to inspect cxas_scrapi: {ex}")
+        print(f"DEBUG: failed to search: {ex}")
 
     # Validate app.json
     app_file = root / "app.json"
