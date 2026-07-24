@@ -1,14 +1,23 @@
 from typing import Dict, Any
-from services.cart_service import cart_service
+
+SESSION_CARTS = {}
 
 def remove_from_cart(session_id: str, sku: str) -> Dict[str, Any]:
     """
-    Remove item from session cart.
-
-    Returns dict with updated cart or agent_action on error.
+    Remove item SKU from active session cart.
     """
     try:
-        cart = cart_service.remove_item(session_id=session_id, sku=sku)
+        cart = SESSION_CARTS.get(session_id, {
+            "session_id": session_id,
+            "items": [],
+            "subtotal": 0.0,
+            "discount_amount": 0.0,
+            "total": 0.0
+        })
+        cart["items"] = [i for i in cart["items"] if i["sku"] != sku]
+        cart["subtotal"] = round(sum(i["unit_price"] * i["qty"] for i in cart["items"]), 2)
+        cart["total"] = cart["subtotal"]
+        
         return {
             "status": "success",
             "cart": cart

@@ -14,14 +14,71 @@ def clean_pycache():
         if p.is_dir():
             shutil.rmtree(p, ignore_errors=True)
 
+def sync_tools_and_agents(target_app_path: str):
+    from cxas_scrapi.core.tools import Tools
+    from cxas_scrapi.core.agents import Agents
+
+    print(f"\n   Synchronizing Python Tools and Agent Instructions to {target_app_path}...")
+    tools_client = Tools(app_name=target_app_path)
+    agents_client = Agents(app_name=target_app_path)
+
+    tools_def = [
+        ('get_user_profile', 'Look up user profile details such as name and membership tier by user_id.'),
+        ('get_discount', 'Get discount rate for a membership tier (Gold, Silver, Bronze, Guest).'),
+        ('search_catalog', 'Search product catalog by query, category, and price range.'),
+        ('add_to_cart', 'Add an item SKU and quantity to the active session shopping cart.'),
+        ('get_cart', 'Retrieve active cart details, items, subtotals, and totals.'),
+        ('remove_from_cart', 'Remove an item SKU from the active session shopping cart.'),
+        ('submit_feedback', 'Submit customer rating (1-5 stars) and feedback comments.')
+    ]
+
+    created_tools = {}
+    for tool_id, desc in tools_def:
+        code_path = root / 'tools' / tool_id / 'python_function' / 'python_code.py'
+        if not code_path.exists():
+            continue
+        code = code_path.read_text(encoding='utf-8')
+        payload = {'name': tool_id, 'description': desc, 'python_code': code}
+        try:
+            t = tools_client.create_tool(tool_id=tool_id, display_name=tool_id, payload=payload, tool_type='python_function')
+            created_tools[tool_id] = t.name
+        except Exception:
+            for t in tools_client.list_tools():
+                if t.display_name == tool_id or t.name.endswith('/tools/' + tool_id):
+                    created_tools[tool_id] = t.name
+
+    agent_names_map = {a.display_name: a.name for a in agents_client.list_agents()}
+    agent_tools_map = {
+        'RootAgent': [],
+        'ShoppingAssistant': ['get_user_profile', 'get_discount', 'search_catalog', 'add_to_cart', 'get_cart', 'remove_from_cart'],
+        'FeedbackAgent': ['submit_feedback']
+    }
+    agent_children_map = {
+        'RootAgent': ['ShoppingAssistant', 'FeedbackAgent'],
+        'ShoppingAssistant': [],
+        'FeedbackAgent': []
+    }
+
+    for agent_display_name, target_tools in agent_tools_map.items():
+        resource_name = agent_names_map.get(agent_display_name)
+        if not resource_name:
+            continue
+        inst_file = root / 'agents' / agent_display_name / 'instruction.txt'
+        instruction_text = inst_file.read_text(encoding='utf-8') if inst_file.exists() else ""
+        resolved_tools = [created_tools[t] for t in target_tools if t in created_tools]
+        resolved_children = [agent_names_map[c] for c in agent_children_map[agent_display_name] if c in agent_names_map]
+
+        try:
+            agents_client.update_agent(resource_name, instruction=instruction_text, tools=resolved_tools, child_agents=resolved_children)
+            print(f"   ✅ Agent '{agent_display_name}' synced (instruction & {len(resolved_tools)} tools attached).")
+        except Exception as e:
+            print(f"   ⚠️ Sync warning for '{agent_display_name}': {e}")
+
 def run_cli_command(args: list[str]):
-    # Clean cache files first
     clean_pycache()
-    # Try calling the CLI tool directly first
     try:
         subprocess.run(args, check=True)
     except FileNotFoundError:
-        # If 'cxas' is not found, try running it as a python module
         if args[0] == "cxas":
             fallback_args = [sys.executable, "-m", "cxas_scrapi.cli"] + args[1:]
             try:
@@ -43,13 +100,11 @@ def build_and_deploy_cxas(env: str):
     with open(config_file, "rb") as f:
         config_data = tomllib.load(f)
 
-    # Resolve default configurations
     default_config = config_data.get("default", {})
     project_id = default_config.get("project_id", "ecom-cx-agent")
     location = default_config.get("location", "us")
     app_id = default_config.get("app_id", "shopping-assistant-app")
 
-    # Apply profile overrides
     profiles = config_data.get("profiles", {})
     profile_config = profiles.get(env, {}) if isinstance(profiles, dict) else {}
     if isinstance(profile_config, dict):
@@ -64,9 +119,9 @@ def build_and_deploy_cxas(env: str):
     print(f"   Target App:  {target_app_path}")
 
     try:
-        # Push the application configuration using cxas push --to
         print(f"\n   Pushing application state to {target_app_path}...")
         run_cli_command(["cxas", "push", "--to", target_app_path])
+        sync_tools_and_agents(target_app_path)
 
         print(f"\n==========================================================================")
         print(f"🎉 SUCCESSFULLY DEPLOYED TO GEMINI ENTERPRISE FOR CX IN {project_id}!")

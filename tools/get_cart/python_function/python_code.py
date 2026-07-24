@@ -1,14 +1,19 @@
 from typing import Dict, Any
-from services.cart_service import cart_service
+
+SESSION_CARTS = {}
 
 def get_cart(session_id: str) -> Dict[str, Any]:
     """
-    Get session cart contents.
-
-    Returns dict with cart details or agent_action on error.
+    Get active cart details for a session.
     """
     try:
-        cart = cart_service.get_cart(session_id)
+        cart = SESSION_CARTS.get(session_id, {
+            "session_id": session_id,
+            "items": [],
+            "subtotal": 0.0,
+            "discount_amount": 0.0,
+            "total": 0.0
+        })
         return {
             "status": "success",
             "cart": cart
