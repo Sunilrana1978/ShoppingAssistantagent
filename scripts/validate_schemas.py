@@ -6,6 +6,20 @@ def validate_project():
     root = Path(__file__).parent.parent
     print("🔍 Validating Multi-Agent Application manifests and schemas...")
 
+    try:
+        import cxas_scrapi
+        import os
+        pkg_dir = os.path.dirname(cxas_scrapi.__file__)
+        print(f"DEBUG: cxas_scrapi package dir: {pkg_dir}")
+        print("DEBUG: files in package:")
+        for r, d, files in os.walk(pkg_dir):
+            for f in files:
+                rel = os.path.relpath(os.path.join(r, f), pkg_dir)
+                if any(x in rel for x in ["schema", "model", "config", "app", "agent"]):
+                    print(f"  - {rel}")
+    except Exception as ex:
+        print(f"DEBUG: failed to inspect cxas_scrapi: {ex}")
+
     # Validate app.json
     app_file = root / "app.json"
     if not app_file.exists():
