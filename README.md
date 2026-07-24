@@ -276,6 +276,16 @@ uv run python scripts/build_app.py --env prod
 
 ---
 
+## 📸 Screenshots
+
+### 1. Multi-Agent Connection Graph in CX Agent Studio
+![Multi-Agent Connection Graph](assets/agent_graph.png)
+
+### 2. Deployed Applications List (dev, staging, prod)
+![Deployed Applications List](assets/deployed_apps.png)
+
+---
+
 ## 📝 Document References
 - [Product Requirements Document (PRD)](file:///Users/sunilkumar/gcp/ShoppingAssistantAgent/Shopping-Assistant-Agent-PRD.md)
 - [Technical Design Document (TDD v2.1)](file:///Users/sunilkumar/gcp/ShoppingAssistantAgent/Shopping-Assistant-Agent-TDD.md)
