@@ -24,6 +24,22 @@ def validate_project():
 
     # Validate agents
     agents = ["root-agent", "ShoppingAssistant", "FeedbackAgent"]
+    try:
+        import cxas_scrapi
+        import os
+        pkg_dir = os.path.dirname(cxas_scrapi.__file__)
+        cli_app_py = os.path.join(pkg_dir, "cli", "app.py")
+        if os.path.exists(cli_app_py):
+            print(f"DEBUG: Printing contents of cli/app.py...")
+            with open(cli_app_py, "r", encoding="utf-8") as f:
+                content = f.read()
+            for idx, line in enumerate(content.splitlines()):
+                if "root" in line or "agent" in line or "data" in line or "json" in line:
+                    print(f"  [{idx+1}] {line.strip()}")
+        else:
+            print("DEBUG: cli/app.py does not exist")
+    except Exception as ex:
+        print(f"DEBUG: failed to search cli/app.py: {ex}")
     for agent_dir in agents:
         af = root / "agents" / agent_dir / f"{agent_dir}.json"
         if not af.exists():
