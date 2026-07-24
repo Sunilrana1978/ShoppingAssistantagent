@@ -23,6 +23,19 @@ def validate_project():
     print(f"✅ app.json valid - App Name: {app_data.get('name')}, Root Agent: {root_agent}")
 
     # Validate agents
+    try:
+        import cxas_scrapi.core.agents as ca
+        import inspect
+        print("DEBUG: Inspecting Agent class fields...")
+        if hasattr(ca.Agent, "model_fields"):
+            print("  Pydantic model fields:", list(ca.Agent.model_fields.keys()))
+        elif hasattr(ca.Agent, "__fields__"):
+            print("  Pydantic v1 fields:", list(ca.Agent.__fields__.keys()))
+        else:
+            print("  Members:", [name for name, _ in inspect.getmembers(ca.Agent)])
+    except Exception as ex:
+        print(f"DEBUG: failed to inspect Agent class: {ex}")
+
     agents = ["RootAgent", "ShoppingAssistant", "FeedbackAgent"]
     for agent_dir in agents:
         af = root / "agents" / agent_dir / f"{agent_dir}.json"
