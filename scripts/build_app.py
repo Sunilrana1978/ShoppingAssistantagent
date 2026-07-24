@@ -25,20 +25,42 @@ def run_cli_command(args: list[str]):
             sys.exit(1)
 
 def build_and_deploy_cxas(env: str):
+    config_file = root / "gecx-config.toml"
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        import tomli as tomllib
+
+    with open(config_file, "rb") as f:
+        config_data = tomllib.load(f)
+
+    # Resolve default configurations
+    default_config = config_data.get("default", {})
+    project_id = default_config.get("project_id", "ecom-cx-agent")
+    location = default_config.get("location", "us")
+    app_id = default_config.get("app_id", "shopping-assistant-app")
+
+    # Apply profile overrides
+    profiles = config_data.get("profiles", {})
+    profile_config = profiles.get(env, {}) if isinstance(profiles, dict) else {}
+    if isinstance(profile_config, dict):
+        project_id = profile_config.get("project_id", project_id)
+        location = profile_config.get("location", location)
+        app_id = profile_config.get("app_id", app_id)
+
+    target_app_path = f"projects/{project_id}/locations/{location}/apps/{app_id}"
+
     print(f"🚀 Deploying to Gemini Enterprise for Customer Experience (CX Agent Studio)...")
-    print(f"   Environment Profile: {env.upper()}")
+    print(f"   Environment: {env.upper()}")
+    print(f"   Target App:  {target_app_path}")
 
     try:
-        # 1. Set the active profile in the workspace config
-        print(f"\n   Setting workspace profile to '{env}'...")
-        run_cli_command(["cxas", "workspace", "set", "--profile", env])
-
-        # 2. Push the application to CX Agent Studio
-        print(f"\n   Pushing application state (agents, instructions, tools, callbacks)...")
-        run_cli_command(["cxas", "push"])
+        # Push the application configuration using cxas push --to
+        print(f"\n   Pushing application state to {target_app_path}...")
+        run_cli_command(["cxas", "push", "--to", target_app_path])
 
         print(f"\n==========================================================================")
-        print(f"🎉 SUCCESSFULLY DEPLOYED TO GEMINI ENTERPRISE FOR CX IN PROFILE {env.upper()}!")
+        print(f"🎉 SUCCESSFULLY DEPLOYED TO GEMINI ENTERPRISE FOR CX IN {project_id}!")
         print(f"==========================================================================")
     except Exception as e:
         print(f"\n❌ Deployment failed: {e}", file=sys.stderr)
