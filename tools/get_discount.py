@@ -1,18 +1,26 @@
 from typing import Dict, Any
-from services.discount_service import discount_service
+
+MEMBERSHIP_DISCOUNTS = {
+    "gold": 15,
+    "silver": 10,
+    "bronze": 5,
+    "none": 0,
+    "guest": 0
+}
 
 def get_discount(membership_tier: str) -> Dict[str, Any]:
     """
     Look up discount percentage for a membership tier.
 
-    Returns dict with status, discount details, or agent_action on error.
+    Returns dict containing membership_tier and discount_pct.
     """
     try:
-        discount_info = discount_service.get_discount_by_tier(membership_tier)
+        tier_key = str(membership_tier).lower().strip()
+        pct = MEMBERSHIP_DISCOUNTS.get(tier_key, 0)
         return {
             "status": "success",
-            "membership_tier": discount_info["tier"],
-            "discount_pct": discount_info["discount_pct"]
+            "membership_tier": tier_key,
+            "discount_pct": pct
         }
     except Exception as e:
         return {

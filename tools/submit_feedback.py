@@ -1,21 +1,30 @@
 from typing import Dict, Any
-from services.feedback_service import feedback_service
+import datetime
+
+FEEDBACK_ENTRIES = []
 
 def submit_feedback(user_id: str, rating: int, comments: str = "") -> Dict[str, Any]:
     """
-    Submit feedback rating and comments.
-
-    Returns dict with submission status or agent_action on error.
+    Submit customer rating (1-5 stars) and optional feedback comments.
     """
     try:
-        result = feedback_service.submit_feedback(user_id=user_id, rating=rating, comments=comments)
+        r = max(1, min(5, int(rating)))
+        fb_id = f"fb_{len(FEEDBACK_ENTRIES) + 1001}"
+        entry = {
+            "feedback_id": fb_id,
+            "user_id": user_id,
+            "rating": r,
+            "comments": comments or "",
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+        }
+        FEEDBACK_ENTRIES.append(entry)
         return {
             "status": "success",
-            "feedback_id": result.get("feedback_id"),
+            "feedback_id": fb_id,
             "user_id": user_id,
-            "rating": result.get("rating", rating),
+            "rating": r,
             "comments": comments,
-            "message": result.get("message", "Thank you for your feedback!")
+            "message": "Thank you for your feedback!"
         }
     except Exception as e:
         return {
