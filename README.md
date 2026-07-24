@@ -133,6 +133,7 @@ ShoppingAssistantAgent/
 └── scripts/
     ├── validate_schemas.py          # Schema & manifest validation script
     ├── build_app.py                 # cxas-scrapi multi-environment deployer
+    ├── deploy_to_gcp_live.py        # Programmatic agent initialization script
     └── test_interactive_session.py  # Interactive multi-agent demo simulation
 ```
 
@@ -257,11 +258,14 @@ gh secret set GCP_WIF_PROVIDER --body "projects/${PROJECT_NUM}/locations/global/
 gcloud auth application-default login
 gcloud config set project ecom-cx-agent
 
-# 2. Deploy to DEV environment
+# 2. (Optional) Initialize the live Agent in your GCP console
+uv run python scripts/deploy_to_gcp_live.py
+
+# 3. Deploy to DEV environment
 uv run python scripts/build_app.py --env dev
 # or: uv run cxas push --to projects/ecom-cx-agent/locations/us/apps/shopping-assistant-app-dev
 
-# 3. Deploy to STAGING environment
+# 4. Deploy to STAGING environment
 uv run python scripts/build_app.py --env staging
 # or: uv run cxas push --to projects/ecom-cx-agent/locations/us/apps/shopping-assistant-app-staging
 
