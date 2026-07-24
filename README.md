@@ -64,38 +64,50 @@ flowchart LR
 ```
 ShoppingAssistantAgent/
 ├── Shopping-Assistant-Agent-PRD.md  # Product Requirements Document
-├── Shopping-Assistant-Agent-TDD.md  # Technical Design Document (TDD v2.0)
+├── Shopping-Assistant-Agent-TDD.md  # Technical Design Document (TDD v2.1)
 ├── README.md                        # Project Documentation
-├── app.json                         # CX Agent Studio Application Manifest
+├── app.json                         # CX Agent Studio Application Manifest (RootAgent)
 ├── pyproject.toml                   # Project dependencies and test config
+├── gecx-config.toml                 # Multi-Environment Deployment Profiles (dev, staging, prod)
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml                   # CI Quality Gate (Schema linting, pytest, evals)
+│       ├── ci.yml                   # CI Quality Gate (cxas lint, validate_schemas, pytest, evals)
 │       └── cd.yml                   # CD Deployment (GCP Workload Identity promotion)
-├── gecx-config.toml                 # Unified Multi-Profile Configuration
-├── .scrapi/
-│   └── active-project               # Active Workspace Pointer
 ├── agents/
-│   ├── root_agent/
-│   │   ├── agent.json               # RootAgent manifest & sub-agent bindings
-│   │   ├── instructions.xml         # Supervisor routing system prompt
-│   │   └── variables.json           # Router variables schema
-│   ├── shopping_assistant/
-│   │   ├── agent.json               # ShoppingAssistant manifest & tools
-│   │   ├── instructions.xml         # Product discovery & cart system prompt
-│   │   └── variables.json           # Shopping variables schema
-│   └── feedback_agent/
-│       ├── agent.json               # FeedbackAgent manifest & tools
-│       ├── instructions.xml         # Feedback collection system prompt
-│       └── variables.json           # Feedback variables schema
+│   ├── RootAgent/
+│   │   ├── RootAgent.json           # RootAgent manifest & sub-agent bindings
+│   │   └── instruction.txt          # Supervisor routing system prompt (<role>, <step>)
+│   ├── ShoppingAssistant/
+│   │   ├── ShoppingAssistant.json   # ShoppingAssistant manifest & tools
+│   │   └── instruction.txt          # Product discovery & cart prompt (<role>, <step>)
+│   └── FeedbackAgent/
+│       ├── FeedbackAgent.json       # FeedbackAgent manifest & tools
+│       └── instruction.txt          # Feedback collection prompt (<role>, <step>)
 ├── tools/
-│   ├── get_user_profile.py          # Python tool: User profile lookup
-│   ├── get_discount.py              # Python tool: Membership discount lookup
-│   ├── search_catalog.py            # Python tool: Catalog search & filtering
-│   ├── add_to_cart.py               # Python tool: Add item SKU/qty to session cart
-│   ├── get_cart.py                  # Python tool: Active cart details & totals
-│   ├── remove_from_cart.py          # Python tool: Cart item removal
-│   └── submit_feedback.py           # Python tool: Submit star rating & comments
+│   ├── get_user_profile/
+│   │   ├── get_user_profile.json    # CXAS Tool Manifest (pythonFunction)
+│   │   └── python_function/
+│   │       └── python_code.py       # Python Tool implementation
+│   ├── get_discount/
+│   │   ├── get_discount.json
+│   │   └── python_function/python_code.py
+│   ├── search_catalog/
+│   │   ├── search_catalog.json
+│   │   └── python_function/python_code.py
+│   ├── add_to_cart/
+│   │   ├── add_to_cart.json
+│   │   └── python_function/python_code.py
+│   ├── get_cart/
+│   │   ├── get_cart.json
+│   │   └── python_function/python_code.py
+│   ├── remove_from_cart/
+│   │   ├── remove_from_cart.json
+│   │   └── python_function/python_code.py
+│   ├── submit_feedback/
+│   │   ├── submit_feedback.json
+│   │   └── python_function/python_code.py
+│   └── end_session/
+│       └── end_session.json        # CXAS Client Tool Manifest (clientFunction)
 ├── callbacks/
 │   ├── before_agent.py              # Hook: Context seeding from channel payload
 │   ├── after_tool.py                # Hook: Server-side cart arithmetic & feedback state
@@ -144,15 +156,14 @@ uv pip install -e .
 
 ## 🧪 Testing & Verification
 
-### Run SCRAPI CLI Validation
-Validates the project structure and agent prompt quality:
+### Run CXAS Deterministic Linter
+Validates directory layout, protobuf schemas, tool configurations, and prompt structure (Target: 0 errors):
 ```bash
 uv run cxas lint
-uv run cxas llm-lint
 ```
 
 ### Run Schema & Manifest Validation
-Validates `app.json`, `agent.json`, `instructions.xml`, and JSON data files:
+Validates `app.json`, agent JSON manifests, `instruction.txt` files, and JSON data files:
 ```bash
 uv run python scripts/validate_schemas.py
 ```
@@ -177,10 +188,53 @@ uv run python scripts/test_interactive_session.py
 
 ---
 
+## 🔐 Keyless Authentication Setup (GCP Workload Identity Federation)
+
+To enable automated CD deployment via GitHub Actions without storing long-lived service account keys:
+
+```bash
+# 1. Set variables
+export PROJECT_ID="ecom-cx-agent"
+export REPO="Sunilrana1978/ShoppingAssistantagent"
+export SA_NAME="github-actions-deployer"
+export POOL_NAME="github-pool"
+export PROVIDER_NAME="github-provider"
+
+# 2. Get GCP Project Number
+export PROJECT_NUM=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
+
+# 3. Create Service Account & Grant IAM Roles
+gcloud iam service-accounts create $SA_NAME --project=$PROJECT_ID --display-name="GitHub Actions Deployer"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" --role="roles/dialogflow.admin"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" --role="roles/aiplatform.admin"
+
+# 4. Create Workload Identity Pool & OIDC Provider
+gcloud iam workload-identity-pools create $POOL_NAME --project=$PROJECT_ID --location="global" --display-name="GitHub Actions Pool"
+
+gcloud iam workload-identity-pools providers create-oidc $PROVIDER_NAME \
+    --project=$PROJECT_ID --location="global" --workload-identity-pool=$POOL_NAME \
+    --display-name="GitHub Provider" \
+    --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository" \
+    --attribute-condition="assertion.repository == '$REPO'" \
+    --issuer-uri="https://token.actions.githubusercontent.com"
+
+# 5. Bind Service Account to GitHub Repository
+gcloud iam service-accounts add-iam-policy-binding "${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" \
+    --project=$PROJECT_ID \
+    --role="roles/iam.workloadIdentityUser" \
+    --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUM}/locations/global/workloadIdentityPools/${POOL_NAME}/attribute.repository/${REPO}"
+
+# 6. Set GitHub Repository Secrets
+gh secret set GCP_SA_EMAIL --body "${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" --repo $REPO
+gh secret set GCP_WIF_PROVIDER --body "projects/${PROJECT_NUM}/locations/global/workloadIdentityPools/${POOL_NAME}/providers/${PROVIDER_NAME}" --repo $REPO
+```
+
+---
+
 ## 🚢 Deployment to GCP (`ecom-cx-agent`, region: `us`)
 
 ### Method 1: Automated Deployment via GitHub Actions (Recommended)
-- **Deploy to STAGING**: Merge your Pull Request or push commits to `main`. GitHub Actions automatically deploys to `ecom-cx-agent` (`shopping-assistant-app-staging`).
+- **Deploy to STAGING**: Merge your Pull Request or push commits to `main`. GitHub Actions automatically authenticates via WIF and deploys to `ecom-cx-agent` (`shopping-assistant-app-staging`).
 - **Deploy to PRODUCTION**: Create a Git release tag (e.g., `git tag v1.0.0 && git push origin v1.0.0`). GitHub Actions automatically deploys to `ecom-cx-agent` (`shopping-assistant-app-prod`).
 
 ### Method 2: Deployment via Terminal CLI / Script
@@ -191,25 +245,20 @@ gcloud config set project ecom-cx-agent
 
 # 2. Deploy to DEV environment
 uv run python scripts/build_app.py --env dev
-# or: uv run cxas push --profile dev
+# or: uv run cxas push --to projects/ecom-cx-agent/locations/us/apps/shopping-assistant-app-dev
 
 # 3. Deploy to STAGING environment
 uv run python scripts/build_app.py --env staging
-# or: uv run cxas push --profile staging
+# or: uv run cxas push --to projects/ecom-cx-agent/locations/us/apps/shopping-assistant-app-staging
 
 # 4. Deploy to PROD environment
 uv run python scripts/build_app.py --env prod
-# or: uv run cxas push --profile prod
+# or: uv run cxas push --to projects/ecom-cx-agent/locations/us/apps/shopping-assistant-app-prod
 ```
-
-### Method 3: Import via CX Agent Studio Web Console
-1. Open **Google Cloud Console** → Navigate to **Gemini Enterprise for Customer Experience** → **CX Agent Studio**.
-2. Select GCP Project **`ecom-cx-agent`** and Region **`us`**.
-3. Click **Import Application** and select the repository root directory (containing `app.json`).
-4. CX Agent Studio will auto-import `RootAgent`, `ShoppingAssistant`, `FeedbackAgent`, instructions, and Python tools.
 
 ---
 
 ## 📝 Document References
 - [Product Requirements Document (PRD)](file:///Users/sunilkumar/gcp/ShoppingAssistantAgent/Shopping-Assistant-Agent-PRD.md)
-- [Technical Design Document (TDD v2.0)](file:///Users/sunilkumar/gcp/ShoppingAssistantAgent/Shopping-Assistant-Agent-TDD.md)
+- [Technical Design Document (TDD v2.1)](file:///Users/sunilkumar/gcp/ShoppingAssistantAgent/Shopping-Assistant-Agent-TDD.md)
+

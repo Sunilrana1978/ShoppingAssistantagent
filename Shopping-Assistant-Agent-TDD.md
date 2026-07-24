@@ -1,7 +1,7 @@
 # Technical Design Document (TDD): Multi-Agent Sporting Goods Application
 
-**Document Version:** 2.0  
-**Date:** July 23, 2026  
+**Document Version:** 2.1  
+**Date:** July 24, 2026  
 **Author:** Antigravity (Pair Programming with User)  
 **PRD Reference:** [Shopping-Assistant-Agent-PRD.md](file:///Users/sunilkumar/gcp/ShoppingAssistantAgent/Shopping-Assistant-Agent-PRD.md)  
 **Target Platform:** CX Agent Studio (Gemini Enterprise for Customer Experience)  
@@ -56,60 +56,72 @@ flowchart LR
 
 ---
 
-## 2. Directory & Project Structure (`cxas-scrapi`)
+## 2. Directory & Project Structure (`cxas-scrapi` / CES API)
 
 ```
 ShoppingAssistantAgent/
 ├── Shopping-Assistant-Agent-PRD.md
 ├── Shopping-Assistant-Agent-TDD.md
-├── app.json                       # Application Manifest declaring RootAgent, ShoppingAssistant, FeedbackAgent
+├── README.md
+├── app.json                       # Application Manifest declaring RootAgent
 ├── pyproject.toml                 # Project configuration
+├── gecx-config.toml               # Multi-environment target app configurations
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                 # Multi-agent CI quality gate
-│       └── cd.yml                 # Multi-agent CD deployment pipeline
-├── environments/
-│   ├── dev.environment.json
-│   ├── staging.environment.json
-│   └── prod.environment.json
+│       └── cd.yml                 # Keyless WIF multi-agent CD deployment pipeline
 ├── agents/
-│   ├── root_agent/
-│   │   ├── agent.json             # Root Agent definition
-│   │   ├── instructions.xml       # Routing system instructions
-│   │   └── variables.json         # Routing state variables
-│   ├── shopping_assistant/
-│   │   ├── agent.json             # Shopping Assistant definition
-│   │   ├── instructions.xml       # Product & Cart system instructions
-│   │   └── variables.json         # Shopping state variables
-│   └── feedback_agent/
-│       ├── agent.json             # Feedback Agent definition
-│       ├── instructions.xml       # Feedback collection system instructions
-│       └── variables.json         # Feedback state variables
+│   ├── RootAgent/
+│   │   ├── RootAgent.json         # Root Agent definition (PascalCase)
+│   │   └── instruction.txt        # Routing system prompt (<role>, <context>, <step>)
+│   ├── ShoppingAssistant/
+│   │   ├── ShoppingAssistant.json # Shopping Assistant definition
+│   │   └── instruction.txt        # Product & Cart system prompt (<role>, <context>, <step>)
+│   └── FeedbackAgent/
+│       ├── FeedbackAgent.json     # Feedback Agent definition
+│       └── instruction.txt        # Feedback collection system prompt (<role>, <context>, <step>)
 ├── tools/
-│   ├── get_user_profile.py
-│   ├── get_discount.py
-│   ├── search_catalog.py
-│   ├── add_to_cart.py
-│   ├── get_cart.py
-│   ├── remove_from_cart.py
-│   └── submit_feedback.py         # NEW: Feedback collection tool
+│   ├── get_user_profile/
+│   │   ├── get_user_profile.json  # CXAS Tool Manifest (pythonFunction)
+│   │   └── python_function/
+│   │       └── python_code.py     # Python Tool Implementation
+│   ├── get_discount/
+│   │   ├── get_discount.json
+│   │   └── python_function/python_code.py
+│   ├── search_catalog/
+│   │   ├── search_catalog.json
+│   │   └── python_function/python_code.py
+│   ├── add_to_cart/
+│   │   ├── add_to_cart.json
+│   │   └── python_function/python_code.py
+│   ├── get_cart/
+│   │   ├── get_cart.json
+│   │   └── python_function/python_code.py
+│   ├── remove_from_cart/
+│   │   ├── remove_from_cart.json
+│   │   └── python_function/python_code.py
+│   ├── submit_feedback/
+│   │   ├── submit_feedback.json
+│   │   └── python_function/python_code.py
+│   └── end_session/
+│       └── end_session.json      # CXAS Client Tool Manifest (clientFunction)
 ├── callbacks/
 │   ├── before_agent.py
 │   ├── after_tool.py
 │   ├── before_tool.py
 │   └── after_model.py
 ├── services/
-│   ├── interfaces.py              # Added IFeedbackService
+│   ├── interfaces.py              # IUserService, IDiscountService, ICatalogService, ICartService, IFeedbackService
 │   ├── user_service.py
 │   ├── discount_service.py
 │   ├── catalog_service.py
 │   ├── cart_service.py
-│   └── feedback_service.py        # NEW: Feedback service implementation
+│   └── feedback_service.py
 ├── data/
 │   ├── mock_users.json
 │   ├── membership_discounts.json
 │   ├── mock_catalog.json
-│   └── mock_feedback.json         # NEW: Mock feedback store
+│   └── mock_feedback.json
 ├── evals/
 │   ├── test_cases.json            # Evals covering router, shopping, and feedback
 │   └── run_evals.py
@@ -120,48 +132,64 @@ ShoppingAssistantAgent/
 
 ---
 
-## 3. Feedback Data Schema & Tool Specification
+## 3. CXAS Platform Standards & Schema Technical Rules
 
-### 3.1 `mock_feedback.json` Schema
-```json
-[
-  {
-    "feedback_id": "fb_1001",
-    "user_id": "u_1029",
-    "rating": 5,
-    "comments": "Great recommendations and instant discount!",
-    "timestamp": "2026-07-23T22:30:00Z"
+To ensure 100% compatibility with Gemini Enterprise for Customer Experience (`ces.googleapis.com`), the application adheres to the following structural and schema rules:
+
+### 3.1 Tool Manifest Schema (`google.cloud.ces.v1beta.Tool`)
+- **Directory Layout**: Each tool is encapsulated inside `tools/<tool_name>/<tool_name>.json`.
+- **Proto Field Constraints**: The `description` field MUST be placed inside the `pythonFunction` or `clientFunction` sub-object, NOT at the top level of `Tool`.
+- **Type-Safe Function Parameters**: Tool function parameters MUST use type-matching defaults (`size: str = ""`, `price_max: float = 0.0`) instead of `None` defaults, as `None` defaults are silently dropped during import.
+- **Deterministic Error Recovery**: Tool implementations return an `agent_action` error dictionary key on exception handling to allow standard LLM recovery:
+  ```python
+  return {
+      "status": "error",
+      "agent_action": "Unable to fetch user profile for " + str(user_id) + ": " + str(e)
   }
-]
-```
+  ```
 
-### 3.2 `submit_feedback` Tool Interface
-```python
-# tools/submit_feedback.py
-from typing import Dict, Any, Optional
-
-def submit_feedback(
-    user_id: str,
-    rating: int,
-    comments: Optional[str] = None
-) -> Dict[str, Any]:
-    """Submit customer rating (1 to 5 stars) and optional feedback comments."""
-    ...
-```
+### 3.2 Agent Manifest & Naming Standards (`google.cloud.ces.v1beta.Agent`)
+- **PascalCase Identifiers**: Root supervisor agent is named **`RootAgent`** to align with CES agent resource resolution and `rootAgent` declaration in `app.json`.
+- **Clean Field Schema**: Non-proto keys such as `instructionsFile` or `variablesFile` are omitted from agent JSON files.
+- **Instruction Prompt Formats**: System instructions live in `agents/<AgentName>/instruction.txt` and must contain structured XML sections:
+  - `<role>`: Concise agent role statement.
+  - `<persona>`: Comprehensive tone and behavior instructions.
+  - `<context>`: Dynamic system context (including `{current_date}`).
+  - `<taskflow>`: Enclosed in `<step name="...">` elements for deterministic task flow control.
 
 ---
 
-## 4. Multi-Agent Routing Specification
+## 4. Keyless Authentication & CI/CD Pipeline Architecture
 
-### 4.1 `RootAgent` Instructions (`agents/root_agent/instructions.xml`)
-- Welcomes customer and checks user intent.
-- Transfers to `ShoppingAssistant` if the user wants to browse products, ask about shoes/apparel, or manage cart.
-- Transfers to `FeedbackAgent` if the user wants to leave feedback, rate their experience, or file a suggestion.
+Deployment automation uses keyless **Google Cloud Workload Identity Federation (WIF)** over OpenID Connect (OIDC).
 
-### 4.2 `FeedbackAgent` Instructions (`agents/feedback_agent/instructions.xml`)
-- Prompts user for a rating (1 to 5 stars) and optional comments.
-- Invokes `submit_feedback` tool to persist feedback.
-- Thanks user warmly and offers transfer back to `ShoppingAssistant` or main menu.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant GitHub as GitHub Actions Runner
+    participant OIDC as GitHub OIDC Provider
+    participant GCP_WIF as GCP Workload Identity Pool
+    participant GCP_SA as GCP Service Account
+    participant CES as CX Agent Studio (CES API)
+
+    GitHub->>OIDC: Request short-lived OIDC ID Token
+    OIDC-->>GitHub: Return OIDC Token (repository claims)
+    GitHub->>GCP_WIF: Exchange OIDC Token for GCP Federated Token
+    GCP_WIF->>GCP_WIF: Validate assertion.repository == 'Sunilrana1978/ShoppingAssistantagent'
+    GCP_WIF-->>GitHub: Return GCP Federated Access Token
+    GitHub->>GCP_SA: Impersonate github-actions-deployer@ecom-cx-agent
+    GCP_SA-->>GitHub: Return GCP Service Account Access Token
+    GitHub->>CES: Push App Bundle (cxas push --to projects/ecom-cx-agent/...)
+    CES-->>GitHub: 200 OK (App Deployed)
+```
+
+### 4.1 Workload Identity Pool & Provider Specification
+- **GCP Project**: `ecom-cx-agent` (Project Number: `331751626808`)
+- **Service Account**: `github-actions-deployer@ecom-cx-agent.iam.gserviceaccount.com`
+- **IAM Roles**: `roles/dialogflow.admin`, `roles/aiplatform.admin`
+- **Workload Identity Pool**: `github-pool`
+- **Workload Identity Provider**: `projects/331751626808/locations/global/workloadIdentityPools/github-pool/providers/github-provider`
+- **Repository Condition**: `assertion.repository == 'Sunilrana1978/ShoppingAssistantagent'`
 
 ---
 
@@ -169,5 +197,5 @@ def submit_feedback(
 
 | Role | Name | Status | Date |
 |---|---|---|---|
-| Lead Architect | Antigravity AI | Approved | July 23, 2026 |
-| Product Owner | Sunil Kumar | Pending Review | July 23, 2026 |
+| Lead Architect | Antigravity AI | Approved | July 24, 2026 |
+| Product Owner | Sunil Kumar | Approved | July 24, 2026 |
