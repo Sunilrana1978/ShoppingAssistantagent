@@ -1,4 +1,6 @@
 import argparse
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -7,7 +9,14 @@ from pathlib import Path
 root = Path(__file__).parent.parent
 sys.path.insert(0, str(root))
 
+def clean_pycache():
+    for p in root.rglob("__pycache__"):
+        if p.is_dir():
+            shutil.rmtree(p, ignore_errors=True)
+
 def run_cli_command(args: list[str]):
+    # Clean cache files first
+    clean_pycache()
     # Try calling the CLI tool directly first
     try:
         subprocess.run(args, check=True)

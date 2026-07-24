@@ -1,0 +1,8 @@
+{
+  "displayName": "get_discount",
+  "pythonFunction": {
+    "name": "get_discount",
+    "description": "Get discount rate for a membership tier (Gold, Silver, Bronze, Guest).",
+    "pythonCode": "tools/get_discount/python_function/python_code.py"
+  }
+}

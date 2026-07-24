@@ -1,0 +1,8 @@
+{
+  "displayName": "submit_feedback",
+  "pythonFunction": {
+    "name": "submit_feedback",
+    "description": "Submit customer rating (1-5 stars) and feedback comments.",
+    "pythonCode": "tools/submit_feedback/python_function/python_code.py"
+  }
+}

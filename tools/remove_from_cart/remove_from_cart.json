@@ -1,0 +1,8 @@
+{
+  "displayName": "remove_from_cart",
+  "pythonFunction": {
+    "name": "remove_from_cart",
+    "description": "Remove an item SKU from the active session shopping cart.",
+    "pythonCode": "tools/remove_from_cart/python_function/python_code.py"
+  }
+}
