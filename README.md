@@ -72,10 +72,9 @@ ShoppingAssistantAgent/
 │   └── workflows/
 │       ├── ci.yml                   # CI Quality Gate (Schema linting, pytest, evals)
 │       └── cd.yml                   # CD Deployment (GCP Workload Identity promotion)
-├── environments/
-│   ├── dev.environment.json         # Dev environment target config (ecom-cx-agent)
-│   ├── staging.environment.json     # Staging environment target config (ecom-cx-agent)
-│   └── prod.environment.json        # Production environment target config (ecom-cx-agent)
+├── gecx-config.toml                 # Unified Multi-Profile Configuration
+├── .scrapi/
+│   └── active-project               # Active Workspace Pointer
 ├── agents/
 │   ├── root_agent/
 │   │   ├── agent.json               # RootAgent manifest & sub-agent bindings
@@ -130,43 +129,50 @@ ShoppingAssistantAgent/
 ## 🚀 Quick Start & Local Setup
 
 ### 1. Prerequisites
-- Python `3.9` or higher
+- Python `3.10` or higher
 - Git
+- `astral-uv`
 
 ### 2. Installation
-Clone the repository and install required dependencies:
+Clone the repository and initialize the virtual environment:
 ```bash
-pip install -e .
-# or
-pip install pydantic cxas-scrapi
+uv venv --python 3.10
+uv pip install -e .
 ```
 
 ---
 
 ## 🧪 Testing & Verification
 
+### Run SCRAPI CLI Validation
+Validates the project structure and agent prompt quality:
+```bash
+uv run cxas lint
+uv run cxas llm-lint
+```
+
 ### Run Schema & Manifest Validation
 Validates `app.json`, `agent.json`, `instructions.xml`, and JSON data files:
 ```bash
-python scripts/validate_schemas.py
+uv run python scripts/validate_schemas.py
 ```
 
 ### Run Unit Test Suite
 Executes unit tests for services, tools, and callback logic:
 ```bash
-python -m unittest discover tests/
+uv run python -m unittest discover tests/
 ```
 
 ### Run Automated Simulation Evaluations
 Executes multi-turn conversation simulations covering tier discount greetings, catalog searches, server-side cart arithmetic, and feedback submissions:
 ```bash
-python evals/run_evals.py
+uv run python evals/run_evals.py
 ```
 
 ### Run Interactive Multi-Agent Demo
 Simulates an interactive customer turn-by-turn conversation:
 ```bash
-python scripts/test_interactive_session.py
+uv run python scripts/test_interactive_session.py
 ```
 
 ---
@@ -184,16 +190,16 @@ gcloud auth application-default login
 gcloud config set project ecom-cx-agent
 
 # 2. Deploy to DEV environment
-python scripts/build_app.py --env dev
-# or: cxas push --environment environments/dev.environment.json
+uv run python scripts/build_app.py --env dev
+# or: uv run cxas push --profile dev
 
 # 3. Deploy to STAGING environment
-python scripts/build_app.py --env staging
-# or: cxas push --environment environments/staging.environment.json
+uv run python scripts/build_app.py --env staging
+# or: uv run cxas push --profile staging
 
 # 4. Deploy to PROD environment
-python scripts/build_app.py --env prod
-# or: cxas push --environment environments/prod.environment.json
+uv run python scripts/build_app.py --env prod
+# or: uv run cxas push --profile prod
 ```
 
 ### Method 3: Import via CX Agent Studio Web Console
