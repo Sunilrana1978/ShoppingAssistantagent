@@ -24,6 +24,23 @@ def validate_project():
 
     # Validate agents
     agents = ["root-agent", "ShoppingAssistant", "FeedbackAgent"]
+    try:
+        import cxas_scrapi
+        import os
+        pkg_dir = os.path.dirname(cxas_scrapi.__file__)
+        print("DEBUG: Searching for tool/globalTools/global_tools in package files...")
+        for root_dir, _, files in os.walk(pkg_dir):
+            for file in files:
+                if file.endswith(".py"):
+                    path = os.path.join(root_dir, file)
+                    with open(path, "r", encoding="utf-8") as f:
+                        lines = f.readlines()
+                    for idx, line in enumerate(lines):
+                        if any(k in line.lower() for k in ["globaltools", "global_tools", "tool_definition", "tool.json", "tool.yaml"]):
+                            rel = os.path.relpath(path, pkg_dir)
+                            print(f"  [{rel}:{idx+1}] {line.strip()}")
+    except Exception as ex:
+        print(f"DEBUG: failed to search package: {ex}")
     for agent_dir in agents:
         af = root / "agents" / agent_dir / f"{agent_dir}.json"
         if not af.exists():
