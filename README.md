@@ -73,9 +73,9 @@ ShoppingAssistantAgent/
 │       ├── ci.yml                   # CI Quality Gate (Schema linting, pytest, evals)
 │       └── cd.yml                   # CD Deployment (GCP Workload Identity promotion)
 ├── environments/
-│   ├── dev.environment.json         # Dev environment target config
-│   ├── staging.environment.json     # Staging environment target config
-│   └── prod.environment.json        # Production environment target config
+│   ├── dev.environment.json         # Dev environment target config (ecom-cx-agent)
+│   ├── staging.environment.json     # Staging environment target config (ecom-cx-agent)
+│   └── prod.environment.json        # Production environment target config (ecom-cx-agent)
 ├── agents/
 │   ├── root_agent/
 │   │   ├── agent.json               # RootAgent manifest & sub-agent bindings
@@ -121,7 +121,8 @@ ShoppingAssistantAgent/
 │   └── test_services.py             # Unit test suite (unittest)
 └── scripts/
     ├── validate_schemas.py          # Schema & manifest validation script
-    └── build_app.py                 # cxas-scrapi multi-environment deployer
+    ├── build_app.py                 # cxas-scrapi multi-environment deployer
+    └── test_interactive_session.py  # Interactive multi-agent demo simulation
 ```
 
 ---
@@ -162,25 +163,47 @@ Executes multi-turn conversation simulations covering tier discount greetings, c
 python evals/run_evals.py
 ```
 
-### Run Deployment Simulation Across Environments
-Simulates building and deploying the application package to `dev`, `staging`, and `prod` environments:
+### Run Interactive Multi-Agent Demo
+Simulates an interactive customer turn-by-turn conversation:
 ```bash
-python scripts/build_app.py --env dev
-python scripts/build_app.py --env staging
-python scripts/build_app.py --env prod
+python scripts/test_interactive_session.py
 ```
 
 ---
 
-## 🔄 CI/CD Pipeline (`cxas-scrapi`)
+## 🚢 Deployment to GCP (`ecom-cx-agent`, region: `us`)
 
-- **Continuous Integration (`.github/workflows/ci.yml`)**:
-  Triggers on PRs and commits to `main`. Automatically runs `validate_schemas.py`, unit tests, and `evals/run_evals.py`. PR merges are blocked if any check fails.
-- **Continuous Deployment (`.github/workflows/cd.yml`)**:
-  Triggers on merges to `main` (for `staging`) or tagged releases (for `prod`). Authenticates via keyless **GCP Workload Identity Federation** and deploys using `scripts/build_app.py`.
+### Method 1: Automated Deployment via GitHub Actions (Recommended)
+- **Deploy to STAGING**: Merge your Pull Request or push commits to `main`. GitHub Actions automatically deploys to `ecom-cx-agent` (`shopping-assistant-app-staging`).
+- **Deploy to PRODUCTION**: Create a Git release tag (e.g., `git tag v1.0.0 && git push origin v1.0.0`). GitHub Actions automatically deploys to `ecom-cx-agent` (`shopping-assistant-app-prod`).
+
+### Method 2: Deployment via Terminal CLI / Script
+```bash
+# 1. Authenticate with Google Cloud
+gcloud auth application-default login
+gcloud config set project ecom-cx-agent
+
+# 2. Deploy to DEV environment
+python scripts/build_app.py --env dev
+# or: cxas push --environment environments/dev.environment.json
+
+# 3. Deploy to STAGING environment
+python scripts/build_app.py --env staging
+# or: cxas push --environment environments/staging.environment.json
+
+# 4. Deploy to PROD environment
+python scripts/build_app.py --env prod
+# or: cxas push --environment environments/prod.environment.json
+```
+
+### Method 3: Import via CX Agent Studio Web Console
+1. Open **Google Cloud Console** → Navigate to **Gemini Enterprise for Customer Experience** → **CX Agent Studio**.
+2. Select GCP Project **`ecom-cx-agent`** and Region **`us`**.
+3. Click **Import Application** and select the repository root directory (containing `app.json`).
+4. CX Agent Studio will auto-import `RootAgent`, `ShoppingAssistant`, `FeedbackAgent`, instructions, and Python tools.
 
 ---
 
 ## 📝 Document References
 - [Product Requirements Document (PRD)](file:///Users/sunilkumar/gcp/ShoppingAssistantAgent/Shopping-Assistant-Agent-PRD.md)
-- [Technical Design Document (TDD)](file:///Users/sunilkumar/gcp/ShoppingAssistantAgent/Shopping-Assistant-Agent-TDD.md)
+- [Technical Design Document (TDD v2.0)](file:///Users/sunilkumar/gcp/ShoppingAssistantAgent/Shopping-Assistant-Agent-TDD.md)
