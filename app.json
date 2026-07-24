@@ -3,9 +3,9 @@
   "name": "ShoppingAssistantApp",
   "displayName": "Sporting Goods Multi-Agent Shopping & Feedback App",
   "description": "Multi-agent conversational application with Root Router, Shopping Assistant, and Customer Feedback Agent.",
-  "rootAgent": "RootAgent",
+  "rootAgent": "root-agent",
   "agents": [
-    "agents/RootAgent/RootAgent.json",
+    "agents/root-agent/root-agent.json",
     "agents/ShoppingAssistant/ShoppingAssistant.json",
     "agents/FeedbackAgent/FeedbackAgent.json"
   ],

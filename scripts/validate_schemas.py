@@ -23,7 +23,7 @@ def validate_project():
     print(f"✅ app.json valid - App Name: {app_data.get('name')}, Root Agent: {root_agent}")
 
     # Validate agents
-    agents = ["RootAgent", "ShoppingAssistant", "FeedbackAgent"]
+    agents = ["root-agent", "ShoppingAssistant", "FeedbackAgent"]
     for agent_dir in agents:
         af = root / "agents" / agent_dir / f"{agent_dir}.json"
         if not af.exists():
