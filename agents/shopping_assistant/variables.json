@@ -1,0 +1,31 @@
+{
+  "static": {
+    "business_rules": "Membership tiers: Gold (15%), Silver (10%), Bronze (5%), None (0%). Cart prices are recomputed server-side with discount applied."
+  },
+  "dynamic": {
+    "user_id": {
+      "type": "string",
+      "description": "Unique user identifier from channel payload."
+    },
+    "user_name": {
+      "type": "string",
+      "description": "User display name."
+    },
+    "membership_tier": {
+      "type": "string",
+      "description": "User membership tier (none, bronze, silver, gold)."
+    },
+    "discount_pct": {
+      "type": "number",
+      "description": "Active discount percentage."
+    },
+    "search_results": {
+      "type": "array",
+      "description": "List of matching product objects from catalog search."
+    },
+    "cart": {
+      "type": "object",
+      "description": "Current cart state containing items, subtotal, discount, and total."
+    }
+  }
+}

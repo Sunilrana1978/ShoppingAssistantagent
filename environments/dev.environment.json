@@ -1,0 +1,11 @@
+{
+  "environment": "dev",
+  "gcp_project": "cxas-shopping-dev",
+  "location": "us-central1",
+  "app_id": "shopping-assistant-app-dev",
+  "services": {
+    "user_service": "mock",
+    "catalog_service": "mock",
+    "cart_service": "mock"
+  }
+}

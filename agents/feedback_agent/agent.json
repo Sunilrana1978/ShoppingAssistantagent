@@ -1,0 +1,13 @@
+{
+  "name": "FeedbackAgent",
+  "display_name": "Customer Feedback Specialist",
+  "description": "Dedicated agent for collecting customer ratings and feedback comments.",
+  "instructions_file": "instructions.xml",
+  "variables_file": "variables.json",
+  "tools": [
+    "submit_feedback"
+  ],
+  "callbacks": {
+    "after_tool": "callbacks/after_tool.py:after_tool_callback"
+  }
+}

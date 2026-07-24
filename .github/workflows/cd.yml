@@ -1,0 +1,46 @@
+name: CD Deployment Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          pip install pydantic cxas-scrapi
+
+      - name: Authenticate to Google Cloud (Workload Identity)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: '${{ secrets.GCP_WIF_PROVIDER }}'
+          service_account: '${{ secrets.GCP_SA_EMAIL }}'
+
+      - name: Set Environment Target
+        id: set-env
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "TARGET_ENV=prod" >> $GITHUB_OUTPUT
+          else
+            echo "TARGET_ENV=staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to CX Agent Studio
+        run: |
+          python scripts/build_app.py --env ${{ steps.set-env.outputs.TARGET_ENV }}

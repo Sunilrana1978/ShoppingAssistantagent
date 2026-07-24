@@ -1,0 +1,64 @@
+[
+  {
+    "id": "tc_01_gold_greeting",
+    "description": "Verify Gold tier member receives personalized greeting and 15% discount statement",
+    "user_id": "u_1029",
+    "agent": "ShoppingAssistant",
+    "turns": [
+      {
+        "user_input": "Hello",
+        "expected_user_name": "Alex",
+        "expected_membership_tier": "gold",
+        "expected_discount_pct": 15
+      }
+    ]
+  },
+  {
+    "id": "tc_02_bronze_greeting",
+    "description": "Verify Bronze tier member receives 5% discount statement",
+    "user_id": "u_1031",
+    "agent": "ShoppingAssistant",
+    "turns": [
+      {
+        "user_input": "Hi there",
+        "expected_user_name": "Taylor",
+        "expected_membership_tier": "bronze",
+        "expected_discount_pct": 5
+      }
+    ]
+  },
+  {
+    "id": "tc_03_search_and_cart_arithmetic",
+    "description": "Verify catalog search and server-side cart pricing calculation",
+    "user_id": "u_1029",
+    "agent": "ShoppingAssistant",
+    "turns": [
+      {
+        "user_input": "I need trail running shoes",
+        "expected_tool_calls": ["search_catalog"],
+        "expected_matched_sku": "sku_1029"
+      },
+      {
+        "user_input": "Add sku_1029 size 10 to cart",
+        "expected_tool_calls": ["add_to_cart"],
+        "expected_subtotal": 129.99,
+        "expected_discount_amount": 19.50,
+        "expected_cart_total": 110.49
+      }
+    ]
+  },
+  {
+    "id": "tc_04_feedback_submission",
+    "description": "Verify FeedbackAgent submission flow",
+    "user_id": "u_1029",
+    "agent": "FeedbackAgent",
+    "turns": [
+      {
+        "user_input": "I want to leave feedback: 5 stars, amazing recommendation!",
+        "expected_tool_calls": ["submit_feedback"],
+        "rating": 5,
+        "comments": "amazing recommendation!"
+      }
+    ]
+  }
+]

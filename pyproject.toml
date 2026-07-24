@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shopping-assistant-agent"
+version = "1.0.0"
+description = "Sporting Goods Shopping Assistant Agent using CX Agent Studio and cxas-scrapi"
+readme = "Shopping-Assistant-Agent-PRD.md"
+requires-python = ">=3.9"
+dependencies = [
+    "cxas-scrapi>=0.1.0",
+    "pydantic>=2.0.0",
+    "pytest>=7.0.0"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"

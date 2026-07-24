@@ -1,0 +1,18 @@
+{
+  "u_1029": {
+    "name": "Alex",
+    "membership_tier": "gold"
+  },
+  "u_1030": {
+    "name": "Jordan",
+    "membership_tier": "silver"
+  },
+  "u_1031": {
+    "name": "Taylor",
+    "membership_tier": "bronze"
+  },
+  "guest": {
+    "name": "Guest",
+    "membership_tier": "none"
+  }
+}
