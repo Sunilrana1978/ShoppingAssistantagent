@@ -1,6 +1,6 @@
 {
   "name": "root-agent",
-  "displayName": "Store Front Supervisor",
+  "displayName": "root-agent",
   "description": "Root router agent that greets customers and routes them to ShoppingAssistant or FeedbackAgent.",
   "instructionsFile": "instructions.xml",
   "variablesFile": "variables.json",

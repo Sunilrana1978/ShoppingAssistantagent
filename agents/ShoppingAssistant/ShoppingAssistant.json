@@ -1,6 +1,6 @@
 {
   "name": "ShoppingAssistant",
-  "displayName": "Sporting Goods Assistant",
+  "displayName": "ShoppingAssistant",
   "description": "Primary conversational assistant for product discovery, discounts, and cart management.",
   "instructionsFile": "instructions.xml",
   "variablesFile": "variables.json",
