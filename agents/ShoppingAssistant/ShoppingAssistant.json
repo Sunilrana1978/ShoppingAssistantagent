@@ -1,9 +1,9 @@
 {
   "name": "ShoppingAssistant",
-  "display_name": "Sporting Goods Assistant",
+  "displayName": "Sporting Goods Assistant",
   "description": "Primary conversational assistant for product discovery, discounts, and cart management.",
-  "instructions_file": "instructions.xml",
-  "variables_file": "variables.json",
+  "instructionsFile": "instructions.xml",
+  "variablesFile": "variables.json",
   "tools": [
     "get_user_profile",
     "get_discount",

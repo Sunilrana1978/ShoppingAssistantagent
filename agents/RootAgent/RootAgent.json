@@ -1,10 +1,10 @@
 {
   "name": "RootAgent",
-  "display_name": "Store Front Supervisor",
+  "displayName": "Store Front Supervisor",
   "description": "Root router agent that greets customers and routes them to ShoppingAssistant or FeedbackAgent.",
-  "instructions_file": "instructions.xml",
-  "variables_file": "variables.json",
-  "sub_agents": [
+  "instructionsFile": "instructions.xml",
+  "variablesFile": "variables.json",
+  "subAgents": [
     "ShoppingAssistant",
     "FeedbackAgent"
   ],
