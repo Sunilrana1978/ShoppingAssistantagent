@@ -1,0 +1,13 @@
+{
+  "name": "FeedbackAgent",
+  "displayName": "Feedback Supervisor",
+  "description": "Assistant specialized in collecting customer experience ratings and comments.",
+  "instructionsFile": "instructions.xml",
+  "variablesFile": "variables.json",
+  "tools": [
+    "submit_feedback"
+  ],
+  "callbacks": {
+    "before_agent": "callbacks/before_agent.py:before_agent_callback"
+  }
+}

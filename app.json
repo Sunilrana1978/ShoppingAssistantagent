@@ -1,15 +1,15 @@
 {
   "$schema": "https://raw.githubusercontent.com/GoogleCloudPlatform/cxas-scrapi/main/schemas/app.schema.json",
   "name": "ShoppingAssistantApp",
-  "display_name": "Sporting Goods Multi-Agent Shopping & Feedback App",
+  "displayName": "Sporting Goods Multi-Agent Shopping & Feedback App",
   "description": "Multi-agent conversational application with Root Router, Shopping Assistant, and Customer Feedback Agent.",
-  "default_agent": "RootAgent",
+  "rootAgent": "RootAgent",
   "agents": [
-    "agents/root_agent/agent.json",
-    "agents/shopping_assistant/agent.json",
-    "agents/feedback_agent/agent.json"
+    "agents/RootAgent/RootAgent.json",
+    "agents/ShoppingAssistant/ShoppingAssistant.json",
+    "agents/FeedbackAgent/FeedbackAgent.json"
   ],
-  "global_tools": [
+  "globalTools": [
     "tools/get_user_profile.py",
     "tools/get_discount.py",
     "tools/search_catalog.py",

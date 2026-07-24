@@ -6,24 +6,6 @@ def validate_project():
     root = Path(__file__).parent.parent
     print("🔍 Validating Multi-Agent Application manifests and schemas...")
 
-    try:
-        import cxas_scrapi
-        import os
-        pkg_dir = os.path.dirname(cxas_scrapi.__file__)
-        agents_py = os.path.join(pkg_dir, "core", "agents.py")
-        if os.path.exists(agents_py):
-            print(f"DEBUG: Printing contents of agents.py...")
-            with open(agents_py, "r", encoding="utf-8") as f:
-                content = f.read()
-            # print all lines that access dict keys or have variables
-            for idx, line in enumerate(content.splitlines()):
-                if ".get(" in line or "self." in line or "[" in line or "name" in line:
-                    print(f"  [{idx+1}] {line.strip()}")
-        else:
-            print("DEBUG: core/agents.py does not exist at path")
-    except Exception as ex:
-        print(f"DEBUG: failed to search agents.py: {ex}")
-
     # Validate app.json
     app_file = root / "app.json"
     if not app_file.exists():
@@ -31,18 +13,31 @@ def validate_project():
         sys.exit(1)
     with open(app_file, "r") as f:
         app_data = json.load(f)
-    print(f"✅ app.json valid - App Name: {app_data.get('name')}, Default Agent: {app_data.get('default_agent')}")
+    
+    # Check for correct camelCase key
+    root_agent = app_data.get("rootAgent")
+    if not root_agent:
+        print("❌ Error: 'rootAgent' missing or empty in app.json")
+        sys.exit(1)
+        
+    print(f"✅ app.json valid - App Name: {app_data.get('name')}, Root Agent: {root_agent}")
 
     # Validate agents
-    agents = ["root_agent", "shopping_assistant", "feedback_agent"]
+    agents = ["RootAgent", "ShoppingAssistant", "FeedbackAgent"]
     for agent_dir in agents:
-        af = root / "agents" / agent_dir / "agent.json"
+        af = root / "agents" / agent_dir / f"{agent_dir}.json"
         if not af.exists():
-            print(f"❌ Error: agents/{agent_dir}/agent.json missing")
+            print(f"❌ Error: agents/{agent_dir}/{agent_dir}.json missing")
             sys.exit(1)
         with open(af, "r") as f:
             adata = json.load(f)
-        print(f"✅ agents/{agent_dir}/agent.json valid - Agent: {adata.get('name')}")
+        
+        # Verify agent config keys
+        if "instructionsFile" not in adata:
+            print(f"❌ Error: 'instructionsFile' missing in agents/{agent_dir}/{agent_dir}.json")
+            sys.exit(1)
+            
+        print(f"✅ agents/{agent_dir}/{agent_dir}.json valid - Agent: {adata.get('name')}")
 
         inst_file = root / "agents" / agent_dir / "instructions.xml"
         if not inst_file.exists():
