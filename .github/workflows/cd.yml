@@ -26,24 +26,26 @@ jobs:
         run: |
           pip install pydantic cxas-scrapi
 
-      - name: Authenticate to Google Cloud (Workload Identity)
-        if: ${{ secrets.GCP_WIF_PROVIDER != '' && secrets.GCP_SA_EMAIL != '' }}
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: '${{ secrets.GCP_WIF_PROVIDER }}'
-          service_account: '${{ secrets.GCP_SA_EMAIL }}'
-
-      - name: Authenticate to Google Cloud (Service Account Key)
-        if: ${{ secrets.GCP_WIF_PROVIDER == '' && secrets.GCP_CREDENTIALS_JSON != '' }}
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS_JSON }}'
-
-      - name: Check Authentication Secrets Status
-        if: ${{ secrets.GCP_WIF_PROVIDER == '' && secrets.GCP_CREDENTIALS_JSON == '' }}
+      - name: Check GCP Secrets Availability
+        id: gcp-auth-check
+        env:
+          WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+          SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
         run: |
-          echo "⚠️ Notice: GCP Authentication secrets (GCP_WIF_PROVIDER or GCP_CREDENTIALS_JSON) are not set in GitHub Repository Secrets."
-          echo "Executing application build and package validation in dry-run mode."
+          if [ -n "$WIF_PROVIDER" ] && [ -n "$SA_EMAIL" ]; then
+            echo "auth_enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "auth_enabled=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Notice: GCP_WIF_PROVIDER and GCP_SA_EMAIL secrets are not set in GitHub repository settings."
+            echo "Executing deployment build in dry-run mode."
+          fi
+
+      - name: Authenticate to Google Cloud (Workload Identity)
+        if: steps.gcp-auth-check.outputs.auth_enabled == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
 
       - name: Set Environment Target
         id: set-env
