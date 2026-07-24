@@ -10,22 +10,19 @@ def validate_project():
         import cxas_scrapi
         import os
         pkg_dir = os.path.dirname(cxas_scrapi.__file__)
-        print(f"DEBUG: cxas_scrapi package dir: {pkg_dir}")
-        print("DEBUG: Searching for configuration patterns in package files...")
-        terms = ["instructions", "root_agent", "rootAgent", "default_agent", "sub_agents", "subAgents", "global_tools", "globalTools", "instructions_file", "instructionsFile"]
-        for r, d, files in os.walk(pkg_dir):
-            for f in files:
-                if f.endswith(".py"):
-                    path = os.path.join(r, f)
-                    with open(path, "r", encoding="utf-8", errors="ignore") as file:
-                        lines = file.readlines()
-                    for idx, line in enumerate(lines):
-                        for term in terms:
-                            if term in line:
-                                rel = os.path.relpath(path, pkg_dir)
-                                print(f"  [{rel}:{idx+1}] {line.strip()}")
+        agents_py = os.path.join(pkg_dir, "core", "agents.py")
+        if os.path.exists(agents_py):
+            print(f"DEBUG: Printing contents of agents.py...")
+            with open(agents_py, "r", encoding="utf-8") as f:
+                content = f.read()
+            # print all lines that access dict keys or have variables
+            for idx, line in enumerate(content.splitlines()):
+                if ".get(" in line or "self." in line or "[" in line or "name" in line:
+                    print(f"  [{idx+1}] {line.strip()}")
+        else:
+            print("DEBUG: core/agents.py does not exist at path")
     except Exception as ex:
-        print(f"DEBUG: failed to search: {ex}")
+        print(f"DEBUG: failed to search agents.py: {ex}")
 
     # Validate app.json
     app_file = root / "app.json"
