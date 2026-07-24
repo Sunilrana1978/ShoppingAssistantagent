@@ -1,0 +1,8 @@
+{
+  "displayName": "add_to_cart",
+  "pythonFunction": {
+    "name": "add_to_cart",
+    "description": "Add an item SKU and quantity to the active session shopping cart.",
+    "pythonCode": "tools/add_to_cart/python_function/python_code.py"
+  }
+}

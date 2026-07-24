@@ -23,7 +23,7 @@ def validate_project():
     print(f"✅ app.json valid - App Name: {app_data.get('name')}, Root Agent: {root_agent}")
 
     # Validate agents
-    agents = ["root-agent", "ShoppingAssistant", "FeedbackAgent"]
+    agents = ["RootAgent", "ShoppingAssistant", "FeedbackAgent"]
     for agent_dir in agents:
         af = root / "agents" / agent_dir / f"{agent_dir}.json"
         if not af.exists():
@@ -32,18 +32,15 @@ def validate_project():
         with open(af, "r") as f:
             adata = json.load(f)
         
-        # Verify agent config keys
-        if "instructionsFile" not in adata:
-            print(f"❌ Error: 'instructionsFile' missing in agents/{agent_dir}/{agent_dir}.json")
-            sys.exit(1)
-            
         print(f"✅ agents/{agent_dir}/{agent_dir}.json valid - Agent: {adata.get('name')}")
 
-        inst_file = root / "agents" / agent_dir / "instructions.xml"
+        inst_file = root / "agents" / agent_dir / "instruction.txt"
         if not inst_file.exists():
-            print(f"❌ Error: agents/{agent_dir}/instructions.xml missing")
+            inst_file = root / "agents" / agent_dir / "instructions.xml"
+        if not inst_file.exists():
+            print(f"❌ Error: agents/{agent_dir} instruction file missing")
             sys.exit(1)
-        print(f"   ↳ instructions.xml verified ({inst_file.stat().st_size} bytes)")
+        print(f"   ↳ {inst_file.name} verified ({inst_file.stat().st_size} bytes)")
 
     # Validate json data files
     for data_fname in ["mock_users.json", "membership_discounts.json", "mock_catalog.json", "mock_feedback.json"]:

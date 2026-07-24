@@ -1,0 +1,8 @@
+{
+  "displayName": "search_catalog",
+  "pythonFunction": {
+    "name": "search_catalog",
+    "description": "Search product catalog by query, category, and price range.",
+    "pythonCode": "tools/search_catalog/python_function/python_code.py"
+  }
+}

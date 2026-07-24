@@ -1,0 +1,8 @@
+{
+  "displayName": "get_cart",
+  "pythonFunction": {
+    "name": "get_cart",
+    "description": "Retrieve active cart details, items, subtotals, and totals.",
+    "pythonCode": "tools/get_cart/python_function/python_code.py"
+  }
+}

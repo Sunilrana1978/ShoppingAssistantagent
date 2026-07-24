@@ -1,0 +1,8 @@
+{
+  "displayName": "get_user_profile",
+  "pythonFunction": {
+    "name": "get_user_profile",
+    "description": "Look up user profile details such as name and membership tier by user_id.",
+    "pythonCode": "tools/get_user_profile/python_function/python_code.py"
+  }
+}

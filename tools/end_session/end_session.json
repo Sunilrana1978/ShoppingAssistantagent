@@ -1,0 +1,7 @@
+{
+  "displayName": "end_session",
+  "clientFunction": {
+    "name": "end_session",
+    "description": "End the current conversation session."
+  }
+}

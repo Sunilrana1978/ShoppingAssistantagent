@@ -2,8 +2,6 @@
   "name": "ShoppingAssistant",
   "displayName": "ShoppingAssistant",
   "description": "Primary conversational assistant for product discovery, discounts, and cart management.",
-  "instructionsFile": "instructions.xml",
-  "variablesFile": "variables.json",
   "tools": [
     "get_user_profile",
     "get_discount",
@@ -11,11 +9,5 @@
     "add_to_cart",
     "get_cart",
     "remove_from_cart"
-  ],
-  "callbacks": {
-    "before_agent": "callbacks/before_agent.py:before_agent_callback",
-    "before_tool": "callbacks/before_tool.py:before_tool_callback",
-    "after_tool": "callbacks/after_tool.py:after_tool_callback",
-    "after_model": "callbacks/after_model.py:after_model_callback"
-  }
+  ]
 }

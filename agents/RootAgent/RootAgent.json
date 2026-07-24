@@ -1,0 +1,12 @@
+{
+  "name": "RootAgent",
+  "displayName": "RootAgent",
+  "description": "Central supervisor agent for routing user requests.",
+  "childAgents": [
+    "ShoppingAssistant",
+    "FeedbackAgent"
+  ],
+  "tools": [
+    "end_session"
+  ]
+}
