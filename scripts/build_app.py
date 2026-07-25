@@ -41,6 +41,37 @@ def sync_tools_and_agents(target_app_path: str):
     except Exception as e:
         print(f"   ⚠️ Warning listing existing tools: {e}")
 
+    # Synchronize client-side tools (like end_session)
+    client_tools = ['end_session']
+    for tool_id in client_tools:
+        json_path = root / 'tools' / tool_id / f'{tool_id}.json'
+        if not json_path.exists():
+            continue
+        import json
+        try:
+            with open(json_path, 'r') as f:
+                tool_data = json.load(f)
+            
+            # Extract client_function payload conforming to Tool schema
+            cf_data = tool_data.get('clientFunction', {})
+            payload = {
+                'name': tool_id,
+                'client_function': {
+                    'name': cf_data.get('name', tool_id),
+                    'description': cf_data.get('description', '')
+                }
+            }
+            # Attempt to register/create the client tool
+            t = tools_client.create_tool(tool_id=tool_id, display_name=tool_id, payload=payload, tool_type='client_function')
+            created_tools[tool_id] = t.name
+            print(f"   ✅ Client Tool '{tool_id}' synchronized/created.")
+        except Exception as e:
+            # Fallback to check if it's already listable
+            if tool_id not in created_tools:
+                for t in tools_client.list_tools():
+                    if t.display_name == tool_id or t.name.endswith('/tools/' + tool_id):
+                        created_tools[tool_id] = t.name
+
     for tool_id, desc in tools_def:
         code_path = root / 'tools' / tool_id / 'python_function' / 'python_code.py'
         if not code_path.exists():
