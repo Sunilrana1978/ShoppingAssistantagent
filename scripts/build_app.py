@@ -32,7 +32,9 @@ def sync_tools_and_agents(target_app_path: str):
         ('submit_feedback', 'Submit customer rating (1-5 stars) and feedback comments.')
     ]
 
-    created_tools = {}
+    created_tools = {
+        'end_session': f"{target_app_path}/tools/end_session"
+    }
     # Pre-populate created_tools with already existing tools (including end_session)
     try:
         for t in tools_client.list_tools():
