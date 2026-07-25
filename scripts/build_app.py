@@ -33,6 +33,14 @@ def sync_tools_and_agents(target_app_path: str):
     ]
 
     created_tools = {}
+    # Pre-populate created_tools with already existing tools (including end_session)
+    try:
+        for t in tools_client.list_tools():
+            tool_id = t.name.split('/')[-1]
+            created_tools[tool_id] = t.name
+    except Exception as e:
+        print(f"   ⚠️ Warning listing existing tools: {e}")
+
     for tool_id, desc in tools_def:
         code_path = root / 'tools' / tool_id / 'python_function' / 'python_code.py'
         if not code_path.exists():
@@ -43,13 +51,14 @@ def sync_tools_and_agents(target_app_path: str):
             t = tools_client.create_tool(tool_id=tool_id, display_name=tool_id, payload=payload, tool_type='python_function')
             created_tools[tool_id] = t.name
         except Exception:
-            for t in tools_client.list_tools():
-                if t.display_name == tool_id or t.name.endswith('/tools/' + tool_id):
-                    created_tools[tool_id] = t.name
+            if tool_id not in created_tools:
+                for t in tools_client.list_tools():
+                    if t.display_name == tool_id or t.name.endswith('/tools/' + tool_id):
+                        created_tools[tool_id] = t.name
 
     agent_names_map = {a.display_name: a.name for a in agents_client.list_agents()}
     agent_tools_map = {
-        'RootAgent': [],
+        'RootAgent': ['end_session'],
         'ShoppingAssistant': ['get_user_profile', 'get_discount', 'search_catalog', 'add_to_cart', 'get_cart', 'remove_from_cart'],
         'FeedbackAgent': ['submit_feedback']
     }
