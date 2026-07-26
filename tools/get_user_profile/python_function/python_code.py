@@ -14,6 +14,8 @@ def get_user_profile(user_id: str) -> Dict[str, Any]:
     Returns dict containing user_id, user_name, and membership_tier.
     """
     try:
+        if isinstance(user_id, str):
+            user_id = user_id.strip('"').strip("'").strip()
         profile = MOCK_USERS.get(user_id, MOCK_USERS["u_guest"])
         return {
             "status": "success",

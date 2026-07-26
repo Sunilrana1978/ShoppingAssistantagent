@@ -63,7 +63,7 @@ def deploy_to_gemini_enterprise(project_id="ecom-cx-agent", location="us"):
         ag_root = agent_client.create_agent(
             agent_id="root-agent",
             display_name="RootAgent",
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash",
             instruction=root_instruction
         )
         print(f"✅ Provisioned RootAgent: {ag_root.name if hasattr(ag_root, 'name') else ag_root}")
@@ -75,7 +75,7 @@ def deploy_to_gemini_enterprise(project_id="ecom-cx-agent", location="us"):
         ag_shop = agent_client.create_agent(
             agent_id="shopping-assistant",
             display_name="ShoppingAssistant",
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash",
             instruction=shopping_instruction
         )
         print(f"✅ Provisioned ShoppingAssistant: {ag_shop.name if hasattr(ag_shop, 'name') else ag_shop}")
@@ -87,7 +87,7 @@ def deploy_to_gemini_enterprise(project_id="ecom-cx-agent", location="us"):
         ag_feed = agent_client.create_agent(
             agent_id="feedback-agent",
             display_name="FeedbackAgent",
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash",
             instruction=feedback_instruction
         )
         print(f"✅ Provisioned FeedbackAgent: {ag_feed.name if hasattr(ag_feed, 'name') else ag_feed}")
