@@ -48,6 +48,11 @@ def add_to_cart(session_id: str, sku: str, qty: int = 1, size: str = "") -> Dict
         
         return {
             "status": "success",
+            "added_item": {
+                "sku": sku,
+                "qty": qty,
+                "size": size
+            },
             "cart": cart
         }
     except Exception as e:

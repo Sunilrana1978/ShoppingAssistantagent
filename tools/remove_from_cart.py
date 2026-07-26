@@ -20,6 +20,7 @@ def remove_from_cart(session_id: str, sku: str) -> Dict[str, Any]:
         
         return {
             "status": "success",
+            "removed_sku": sku,
             "cart": cart
         }
     except Exception as e:
