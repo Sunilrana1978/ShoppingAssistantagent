@@ -110,9 +110,28 @@ def sync_tools_and_agents(target_app_path: str):
         resolved_tools = [created_tools[t] for t in target_tools if t in created_tools]
         resolved_children = [agent_names_map[c] for c in agent_children_map[agent_display_name] if c in agent_names_map]
 
+        # Read model configuration from JSON file
+        model_name = None
+        json_file = root / 'agents' / agent_display_name / f'{agent_display_name}.json'
+        if json_file.exists():
+            try:
+                import json
+                with open(json_file, 'r', encoding='utf-8') as jf:
+                    agent_config = json.load(jf)
+                    model_name = agent_config.get("model")
+            except Exception:
+                pass
+
         try:
-            agents_client.update_agent(resource_name, instruction=instruction_text, tools=resolved_tools, child_agents=resolved_children)
-            print(f"   ✅ Agent '{agent_display_name}' synced (instruction & {len(resolved_tools)} tools attached).")
+            update_kwargs = {
+                "instruction": instruction_text,
+                "tools": resolved_tools,
+                "child_agents": resolved_children
+            }
+            if model_name:
+                update_kwargs["model"] = model_name
+            agents_client.update_agent(resource_name, **update_kwargs)
+            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'} & {len(resolved_tools)} tools attached).")
         except Exception as e:
             print(f"   ⚠️ Sync warning for '{agent_display_name}': {e}")
 

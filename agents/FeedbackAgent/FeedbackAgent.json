@@ -2,6 +2,7 @@
   "name": "FeedbackAgent",
   "displayName": "FeedbackAgent",
   "description": "Customer feedback collection agent.",
+  "model": "gemini-3.5-flash",
   "tools": [
     "submit_feedback"
   ]
