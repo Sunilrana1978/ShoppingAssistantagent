@@ -11,9 +11,21 @@ def after_tool_callback(tool_name: str, tool_output: Dict[str, Any], context: Di
     discount_pct = float(state.get("discount_pct", 0))
 
     if tool_name in ["add_to_cart", "get_cart", "remove_from_cart"]:
-        if isinstance(tool_output, dict) and "cart" in tool_output:
-            sc = cart_service.get_cart(session_id)
-            sc["items"] = tool_output["cart"].get("items", [])
+        if isinstance(tool_output, dict) and tool_output.get("status") == "success":
+            if tool_name == "add_to_cart" and "added_item" in tool_output:
+                added = tool_output["added_item"]
+                cart_service.add_item(
+                    session_id=session_id,
+                    sku=added.get("sku"),
+                    qty=int(added.get("qty", 1)),
+                    size=added.get("size")
+                )
+            elif tool_name == "remove_from_cart" and "removed_sku" in tool_output:
+                cart_service.remove_item(session_id=session_id, sku=tool_output["removed_sku"])
+            elif "cart" in tool_output and not tool_output["cart"].get("items") == [] and not tool_name in ["add_to_cart", "remove_from_cart"]:
+                sc = cart_service.get_cart(session_id)
+                sc["items"] = tool_output["cart"].get("items", [])
+
         updated_cart = cart_service.update_cart_pricing(session_id, discount_pct)
         state["cart"] = updated_cart
         if isinstance(tool_output, dict):
