@@ -9,6 +9,16 @@ def before_agent_callback(context: Dict[str, Any]) -> Dict[str, Any]:
         context["state"] = {}
 
     channel_payload = context.get("channel_payload", {})
+    if isinstance(channel_payload, str):
+        try:
+            import json
+            channel_payload = json.loads(channel_payload)
+        except Exception:
+            channel_payload = {}
+            
+    if not isinstance(channel_payload, dict):
+        channel_payload = {}
+
     user_id = channel_payload.get("user_id")
     
     if not user_id:
@@ -16,6 +26,9 @@ def before_agent_callback(context: Dict[str, Any]) -> Dict[str, Any]:
         
     if not user_id:
         user_id = "guest"
+        
+    if isinstance(user_id, str):
+        user_id = user_id.strip('"').strip("'").strip()
         
     context["state"]["user_id"] = user_id
     if "session_id" not in context["state"]:
