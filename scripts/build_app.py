@@ -128,10 +128,8 @@ def sync_tools_and_agents(target_app_path: str):
                 "tools": resolved_tools,
                 "child_agents": resolved_children
             }
-            if model_name:
-                update_kwargs["model"] = model_name
             agents_client.update_agent(resource_name, **update_kwargs)
-            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'} & {len(resolved_tools)} tools attached).")
+            print(f"   ✅ Agent '{agent_display_name}' synced (instruction & {len(resolved_tools)} tools attached).")
         except Exception as e:
             print(f"   ⚠️ Sync warning for '{agent_display_name}': {e}")
 
