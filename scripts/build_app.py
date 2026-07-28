@@ -90,6 +90,46 @@ def sync_tools_and_agents(target_app_path: str):
                     if t.display_name == tool_id or t.name.endswith('/tools/' + tool_id):
                         created_tools[tool_id] = t.name
 
+    # Synchronize Callback resources in CX Agent Studio
+    created_callbacks = {}
+    callbacks_def = [
+        ('before_agent_callback', 'callbacks/before_agent.py', 'before_agent'),
+        ('before_tool_callback', 'callbacks/before_tool.py', 'before_tool'),
+        ('after_tool_callback', 'callbacks/after_tool.py', 'after_tool'),
+        ('after_model_callback', 'callbacks/after_model.py', 'after_model')
+    ]
+
+    try:
+        from cxas_scrapi.core.callbacks import Callbacks
+        callbacks_client = Callbacks(app_name=target_app_path)
+        for cb_id, cb_rel_path, cb_event in callbacks_def:
+            cb_file = root / cb_rel_path
+            if not cb_file.exists():
+                continue
+            code = cb_file.read_text(encoding='utf-8')
+            payload = {
+                'name': cb_id,
+                'event_type': cb_event,
+                'python_code': code
+            }
+            try:
+                cb = callbacks_client.create_callback(callback_id=cb_id, display_name=cb_id, payload=payload)
+                created_callbacks[cb_id] = getattr(cb, 'name', f"{target_app_path}/callbacks/{cb_id}")
+                print(f"   ✅ Callback '{cb_id}' synchronized/created.")
+            except Exception:
+                if hasattr(callbacks_client, 'list_callbacks'):
+                    try:
+                        for existing_cb in callbacks_client.list_callbacks():
+                            if getattr(existing_cb, 'display_name', '') == cb_id or getattr(existing_cb, 'name', '').endswith('/callbacks/' + cb_id):
+                                created_callbacks[cb_id] = existing_cb.name
+                    except Exception:
+                        pass
+                if cb_id not in created_callbacks:
+                    created_callbacks[cb_id] = f"{target_app_path}/callbacks/{cb_id}"
+    except ImportError:
+        for cb_id, _, _ in callbacks_def:
+            created_callbacks[cb_id] = f"{target_app_path}/callbacks/{cb_id}"
+
     agent_names_map = {a.display_name: a.name for a in agents_client.list_agents()}
     agent_tools_map = {
         'RootAgent': ['end_session'],
@@ -132,6 +172,8 @@ def sync_tools_and_agents(target_app_path: str):
             except Exception:
                 pass
 
+        resolved_callbacks = [created_callbacks.get(cb, cb) for cb in callbacks_list]
+
         try:
             update_kwargs = {
                 "instruction": instruction_text,
@@ -140,11 +182,11 @@ def sync_tools_and_agents(target_app_path: str):
             }
             if model_name:
                 update_kwargs["model_settings"] = {"model": model_name}
-            if callbacks_list:
-                update_kwargs["callbacks"] = callbacks_list
+            if resolved_callbacks:
+                update_kwargs["callbacks"] = resolved_callbacks
 
             agents_client.update_agent(resource_name, **update_kwargs)
-            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'}, {len(resolved_tools)} tools & {len(callbacks_list)} callbacks attached).")
+            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'}, {len(resolved_tools)} tools & {len(resolved_callbacks)} callbacks attached).")
         except Exception as e:
             print(f"   ⚠️ Sync warning for '{agent_display_name}': {e}")
 
