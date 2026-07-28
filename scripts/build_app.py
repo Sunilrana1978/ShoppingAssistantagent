@@ -101,6 +101,12 @@ def sync_tools_and_agents(target_app_path: str):
         'FeedbackAgent': []
     }
 
+    agent_callbacks_map = {
+        'RootAgent': ['before_agent_callback'],
+        'ShoppingAssistant': ['before_agent_callback', 'before_tool_callback', 'after_tool_callback', 'after_model_callback'],
+        'FeedbackAgent': ['before_agent_callback', 'after_tool_callback']
+    }
+
     for agent_display_name, target_tools in agent_tools_map.items():
         resource_name = agent_names_map.get(agent_display_name)
         if not resource_name:
@@ -110,8 +116,9 @@ def sync_tools_and_agents(target_app_path: str):
         resolved_tools = [created_tools[t] for t in target_tools if t in created_tools]
         resolved_children = [agent_names_map[c] for c in agent_children_map[agent_display_name] if c in agent_names_map]
 
-        # Read model configuration from JSON file
+        # Read model & callback configuration from JSON file
         model_name = None
+        callbacks_list = agent_callbacks_map.get(agent_display_name, [])
         json_file = root / 'agents' / agent_display_name / f'{agent_display_name}.json'
         if json_file.exists():
             try:
@@ -119,6 +126,8 @@ def sync_tools_and_agents(target_app_path: str):
                 with open(json_file, 'r', encoding='utf-8') as jf:
                     agent_config = json.load(jf)
                     model_name = agent_config.get("model")
+                    if "callbacks" in agent_config:
+                        callbacks_list = agent_config.get("callbacks", [])
             except Exception:
                 pass
 
@@ -130,8 +139,11 @@ def sync_tools_and_agents(target_app_path: str):
             }
             if model_name:
                 update_kwargs["model_settings"] = {"model": model_name}
+            if callbacks_list:
+                update_kwargs["callbacks"] = callbacks_list
+
             agents_client.update_agent(resource_name, **update_kwargs)
-            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'} & {len(resolved_tools)} tools attached).")
+            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'}, {len(resolved_tools)} tools & {len(callbacks_list)} callbacks attached).")
         except Exception as e:
             print(f"   ⚠️ Sync warning for '{agent_display_name}': {e}")
 

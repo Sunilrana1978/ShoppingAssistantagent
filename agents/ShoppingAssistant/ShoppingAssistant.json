@@ -10,5 +10,11 @@
     "add_to_cart",
     "get_cart",
     "remove_from_cart"
+  ],
+  "callbacks": [
+    "before_agent_callback",
+    "before_tool_callback",
+    "after_tool_callback",
+    "after_model_callback"
   ]
 }
