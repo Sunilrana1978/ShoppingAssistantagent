@@ -143,10 +143,31 @@ def sync_tools_and_agents(target_app_path: str):
     }
 
     agent_callbacks_map = {
-        'RootAgent': ['before_agent_callback'],
-        'ShoppingAssistant': ['before_agent_callback', 'before_tool_callback', 'after_tool_callback', 'after_model_callback'],
-        'FeedbackAgent': ['before_agent_callback', 'after_tool_callback']
+        'RootAgent': {
+            'before_agent': ['before_agent_callback'],
+            'before_tool': [],
+            'after_tool': [],
+            'after_model': []
+        },
+        'ShoppingAssistant': {
+            'before_agent': ['before_agent_callback'],
+            'before_tool': ['before_tool_callback'],
+            'after_tool': ['after_tool_callback'],
+            'after_model': ['after_model_callback']
+        },
+        'FeedbackAgent': {
+            'before_agent': ['before_agent_callback'],
+            'before_tool': [],
+            'after_tool': ['after_tool_callback'],
+            'after_model': []
+        }
     }
+
+    cb_code_map = {}
+    for cb_id, cb_rel_path, _ in callbacks_def:
+        cb_file = root / cb_rel_path
+        if cb_file.exists():
+            cb_code_map[cb_id] = cb_file.read_text(encoding='utf-8')
 
     for agent_display_name, target_tools in agent_tools_map.items():
         resource_name = agent_names_map.get(agent_display_name)
@@ -159,20 +180,27 @@ def sync_tools_and_agents(target_app_path: str):
 
         # Read model & callback configuration from JSON file
         model_name = None
-        callbacks_list = agent_callbacks_map.get(agent_display_name, [])
         json_file = root / 'agents' / agent_display_name / f'{agent_display_name}.json'
+        agent_config = {}
         if json_file.exists():
             try:
                 import json
                 with open(json_file, 'r', encoding='utf-8') as jf:
                     agent_config = json.load(jf)
                     model_name = agent_config.get("model")
-                    if "callbacks" in agent_config:
-                        callbacks_list = agent_config.get("callbacks", [])
             except Exception:
                 pass
 
-        resolved_callbacks = [created_callbacks.get(cb, cb) for cb in callbacks_list]
+        default_cbs = agent_callbacks_map.get(agent_display_name, {})
+        bac = agent_config.get("beforeAgentCallbacks", default_cbs.get("before_agent", []))
+        btc = agent_config.get("beforeToolCallbacks", default_cbs.get("before_tool", []))
+        atc = agent_config.get("afterToolCallbacks", default_cbs.get("after_tool", []))
+        amc = agent_config.get("afterModelCallbacks", default_cbs.get("after_model", []))
+
+        before_agent_cbs = [{"python_code": cb_code_map[cb], "description": cb} for cb in bac if cb in cb_code_map]
+        before_tool_cbs = [{"python_code": cb_code_map[cb], "description": cb} for cb in btc if cb in cb_code_map]
+        after_tool_cbs = [{"python_code": cb_code_map[cb], "description": cb} for cb in atc if cb in cb_code_map]
+        after_model_cbs = [{"python_code": cb_code_map[cb], "description": cb} for cb in amc if cb in cb_code_map]
 
         try:
             update_kwargs = {
@@ -182,11 +210,18 @@ def sync_tools_and_agents(target_app_path: str):
             }
             if model_name:
                 update_kwargs["model_settings"] = {"model": model_name}
-            if resolved_callbacks:
-                update_kwargs["callbacks"] = resolved_callbacks
+            if before_agent_cbs:
+                update_kwargs["before_agent_callbacks"] = before_agent_cbs
+            if before_tool_cbs:
+                update_kwargs["before_tool_callbacks"] = before_tool_cbs
+            if after_tool_cbs:
+                update_kwargs["after_tool_callbacks"] = after_tool_cbs
+            if after_model_cbs:
+                update_kwargs["after_model_callbacks"] = after_model_cbs
 
             agents_client.update_agent(resource_name, **update_kwargs)
-            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'}, {len(resolved_tools)} tools & {len(resolved_callbacks)} callbacks attached).")
+            total_cbs = len(before_agent_cbs) + len(before_tool_cbs) + len(after_tool_cbs) + len(after_model_cbs)
+            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'}, {len(resolved_tools)} tools & {total_cbs} callbacks attached).")
         except Exception as e:
             print(f"   ⚠️ Sync warning for '{agent_display_name}': {e}")
 

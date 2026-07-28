@@ -10,7 +10,7 @@
   "tools": [
     "end_session"
   ],
-  "callbacks": [
+  "beforeAgentCallbacks": [
     "before_agent_callback"
   ]
 }

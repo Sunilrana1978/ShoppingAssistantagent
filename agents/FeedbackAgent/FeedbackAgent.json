@@ -6,8 +6,10 @@
   "tools": [
     "submit_feedback"
   ],
-  "callbacks": [
-    "before_agent_callback",
+  "beforeAgentCallbacks": [
+    "before_agent_callback"
+  ],
+  "afterToolCallbacks": [
     "after_tool_callback"
   ]
 }
