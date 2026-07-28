@@ -1,5 +1,33 @@
 from typing import Any
 
+def find_key_in_obj(obj: Any, key_name: str, max_depth: int = 3) -> Any:
+    """Recursively search for a key in nested dicts or Pydantic/object properties."""
+    if max_depth <= 0 or obj is None:
+        return None
+    if isinstance(obj, dict):
+        if key_name in obj and obj[key_name]:
+            return obj[key_name]
+        for k, v in obj.items():
+            if isinstance(v, (dict, list, object)):
+                res = find_key_in_obj(v, key_name, max_depth - 1)
+                if res:
+                    return res
+    elif isinstance(obj, list):
+        for item in obj:
+            res = find_key_in_obj(item, key_name, max_depth - 1)
+            if res:
+                return res
+    elif hasattr(obj, "__dict__"):
+        d = getattr(obj, "__dict__", {})
+        if isinstance(d, dict) and key_name in d and d[key_name]:
+            return d[key_name]
+        for k, v in d.items():
+            if not k.startswith("_"):
+                res = find_key_in_obj(v, key_name, max_depth - 1)
+                if res:
+                    return res
+    return None
+
 def before_agent_callback(context: Any) -> Any:
     """
     Hook executed before the agent invocation.
@@ -20,31 +48,11 @@ def before_agent_callback(context: Any) -> Any:
     if not isinstance(state, dict):
         return None
 
-    # Extract channel_payload safely if present
-    channel_payload = {}
-    if hasattr(context, "channel_payload"):
-        channel_payload = context.channel_payload
-    elif isinstance(context, dict):
-        channel_payload = context.get("channel_payload", {})
-
-    if isinstance(channel_payload, str):
-        try:
-            import json
-            channel_payload = json.loads(channel_payload)
-        except Exception:
-            channel_payload = {}
-
-    # Read user_id if already present in state or context properties
+    # Deep search for user_id across all context properties
     user_id = state.get("user_id")
 
-    if not user_id and hasattr(context, "variables") and isinstance(context.variables, dict):
-        user_id = context.variables.get("user_id")
-
-    if not user_id and hasattr(context, "user_id") and getattr(context, "user_id", None):
-        user_id = getattr(context, "user_id")
-
-    if not user_id and isinstance(channel_payload, dict):
-        user_id = channel_payload.get("user_id")
+    if not user_id:
+        user_id = find_key_in_obj(context, "user_id")
 
     if isinstance(user_id, str):
         user_id = user_id.strip('"').strip("'").strip()
