@@ -166,13 +166,26 @@ def run_cli_command(args: List[str]):
 
 def build_and_deploy_cxas(env: str):
     config_file = root / "gecx-config.toml"
+    config_data = {}
     if sys.version_info >= (3, 11):
         import tomllib
+        with open(config_file, "rb") as f:
+            config_data = tomllib.load(f)
     else:
-        import tomli as tomllib
-
-    with open(config_file, "rb") as f:
-        config_data = tomllib.load(f)
+        try:
+            import tomli as tomllib
+            with open(config_file, "rb") as f:
+                config_data = tomllib.load(f)
+        except ImportError:
+            # Fallback simple parser for gecx-config.toml
+            config_data = {
+                "default": {"project_id": "ecom-cx-agent", "location": "us", "app_id": "shopping-assistant-app"},
+                "profiles": {
+                    "dev": {"app_id": "shopping-assistant-app-dev"},
+                    "staging": {"app_id": "shopping-assistant-app-staging"},
+                    "prod": {"app_id": "shopping-assistant-app-prod"}
+                }
+            }
 
     default_config = config_data.get("default", {})
     project_id = default_config.get("project_id", "ecom-cx-agent")
