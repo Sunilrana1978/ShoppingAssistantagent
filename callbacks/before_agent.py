@@ -5,6 +5,7 @@ def before_agent_callback(context: Any) -> Any:
     Hook executed before the agent invocation.
     Extracts user_id from channel payload, preserves pre-existing state user_id, or defaults to guest.
     Compatible with both CX Agent Studio CallbackContext objects and Python dict contexts.
+    Modifies context state in place and returns None (no overridden content payload).
     """
     # Extract state safely
     if hasattr(context, "state") and context.state is not None:
@@ -52,4 +53,4 @@ def before_agent_callback(context: Any) -> Any:
             sess_id = getattr(context, "session_id", None) if hasattr(context, "session_id") else (context.get("session_id") if isinstance(context, dict) else None)
             state["session_id"] = sess_id or "sess_default"
 
-    return context
+    return None
