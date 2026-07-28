@@ -1,11 +1,13 @@
 from typing import Any
 
-def before_tool_callback(tool: Any, tool_args: Any, context: Any) -> Any:
+def before_tool_callback(tool: Any = None, tool_input: Any = None, callback_context: Any = None, *args, **kwargs) -> Any:
     """
     Hook executed before a tool runs to sanitize and validate input arguments.
-    Compatible with CX Agent Studio CallbackContext object and dict context.
+    Supports (tool, tool_input, callback_context) signature expected by CX Agent Studio.
     """
     tool_name = getattr(tool, "name", str(tool)) if tool else ""
+    tool_args = tool_input if isinstance(tool_input, dict) else (tool if isinstance(tool, dict) else {})
+    context = callback_context if callback_context is not None else (tool_input if hasattr(tool_input, "state") else None)
 
     if hasattr(context, "state") and context.state is not None:
         state = context.state
