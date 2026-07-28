@@ -1,10 +1,20 @@
 from typing import Dict, Any, List
 
-def after_model_callback(model_response: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+def after_model_callback(model_response: Any, context: Any) -> Any:
     """
     Hook executed after the model responds to format and attach structured JSON widget payloads.
+    Compatible with CX Agent Studio CallbackContext object and dict context.
     """
-    state = context.get("state", {})
+    if hasattr(context, "state") and context.state is not None:
+        state = context.state
+    elif isinstance(context, dict):
+        state = context.get("state", {})
+    else:
+        state = {}
+
+    if not isinstance(state, dict):
+        state = {}
+
     discount_pct = float(state.get("discount_pct", 0))
     custom_payloads: List[Dict[str, Any]] = []
 
@@ -37,8 +47,7 @@ def after_model_callback(model_response: Dict[str, Any], context: Dict[str, Any]
                 ]
             })
 
-    # Attach custom widget payloads if present
-    if custom_payloads:
+    if custom_payloads and isinstance(model_response, dict):
         model_response["rich_widgets"] = custom_payloads
 
     return model_response

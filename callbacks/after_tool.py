@@ -15,20 +15,23 @@ def after_tool_callback(tool: Any, tool_input: Any = None, callback_context: Any
     if tool_response is None and isinstance(tool_input, dict) and isinstance(callback_context, dict):
         tool_name = str(tool)
         tool_output = tool_input
-        context = callback_context
+        ctx = callback_context
     else:
         tool_name = getattr(tool, "name", str(tool)) if tool else ""
-        context = callback_context if isinstance(callback_context, dict) else (getattr(callback_context, "__dict__", {}) or {})
+        ctx = callback_context
         tool_output = tool_response if tool_response is not None else (tool_input if isinstance(tool_input, dict) else {})
 
-    if not isinstance(context, dict):
-        context = {}
-    if "state" not in context:
-        context["state"] = {}
+    if hasattr(ctx, "state") and ctx.state is not None:
+        state = ctx.state
+    elif isinstance(ctx, dict):
+        if "state" not in ctx or not isinstance(ctx["state"], dict):
+            ctx["state"] = {}
+        state = ctx["state"]
+    else:
+        state = {}
 
-    state = context["state"]
-    session_id = state.get("session_id", "sess_default")
-    discount_pct = float(state.get("discount_pct", 0))
+    session_id = state.get("session_id", "sess_default") if isinstance(state, dict) else "sess_default"
+    discount_pct = float(state.get("discount_pct", 0)) if isinstance(state, dict) else 0.0
 
     if tool_name in ["add_to_cart", "get_cart", "remove_from_cart"]:
         if isinstance(tool_output, dict) and tool_output.get("status") == "success":
@@ -48,10 +51,11 @@ def after_tool_callback(tool: Any, tool_input: Any = None, callback_context: Any
                     sc["items"] = tool_output["cart"].get("items", [])
                 
                 updated_cart = cart_service.update_cart_pricing(session_id, discount_pct)
-                state["cart"] = updated_cart
+                if isinstance(state, dict):
+                    state["cart"] = updated_cart
                 tool_output["cart"] = updated_cart
             else:
-                cart = state.get("cart", {"items": [], "subtotal": 0.0, "discount_pct": discount_pct, "discount_amount": 0.0, "total": 0.0})
+                cart = state.get("cart", {"items": [], "subtotal": 0.0, "discount_pct": discount_pct, "discount_amount": 0.0, "total": 0.0}) if isinstance(state, dict) else {"items": [], "subtotal": 0.0, "discount_pct": discount_pct, "discount_amount": 0.0, "total": 0.0}
                 if isinstance(tool_output, dict) and "cart" in tool_output:
                     cart = tool_output["cart"]
                 subtotal = sum(float(item.get("price", 0.0)) * int(item.get("qty", 1)) for item in cart.get("items", []))
@@ -61,16 +65,19 @@ def after_tool_callback(tool: Any, tool_input: Any = None, callback_context: Any
                 cart["discount_pct"] = discount_pct
                 cart["discount_amount"] = disc_amt
                 cart["total"] = total
-                state["cart"] = cart
+                if isinstance(state, dict):
+                    state["cart"] = cart
                 tool_output["cart"] = cart
 
     elif tool_name == "get_discount":
         if isinstance(tool_output, dict) and "discount_pct" in tool_output:
-            state["discount_pct"] = tool_output["discount_pct"]
+            if isinstance(state, dict):
+                state["discount_pct"] = tool_output["discount_pct"]
             if cart_service:
                 updated_cart = cart_service.update_cart_pricing(session_id, tool_output["discount_pct"])
-                state["cart"] = updated_cart
-            elif "cart" in state and isinstance(state["cart"], dict):
+                if isinstance(state, dict):
+                    state["cart"] = updated_cart
+            elif isinstance(state, dict) and "cart" in state and isinstance(state["cart"], dict):
                 cart = state["cart"]
                 subtotal = float(cart.get("subtotal", 0.0))
                 disc_amt = round(subtotal * (tool_output["discount_pct"] / 100.0), 2)
@@ -79,17 +86,17 @@ def after_tool_callback(tool: Any, tool_input: Any = None, callback_context: Any
                 cart["total"] = round(subtotal - disc_amt, 2)
 
     elif tool_name == "get_user_profile":
-        if isinstance(tool_output, dict):
+        if isinstance(tool_output, dict) and isinstance(state, dict):
             name = tool_output.get("user_name") or tool_output.get("name") or "Shopper"
             state["user_name"] = name
             state["membership_tier"] = tool_output.get("membership_tier", "none")
 
     elif tool_name == "search_catalog":
-        if isinstance(tool_output, dict) and "products" in tool_output:
+        if isinstance(tool_output, dict) and "products" in tool_output and isinstance(state, dict):
             state["search_results"] = tool_output["products"]
 
     elif tool_name == "submit_feedback":
-        if isinstance(tool_output, dict) and tool_output.get("status") == "success":
+        if isinstance(tool_output, dict) and tool_output.get("status") == "success" and isinstance(state, dict):
             state["feedback_submitted"] = True
             state["last_feedback_id"] = tool_output.get("feedback_id")
 
