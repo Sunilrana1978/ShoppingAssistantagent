@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import sys
+from typing import List
 from pathlib import Path
 
 # Add project root to sys.path
@@ -147,7 +148,7 @@ def sync_tools_and_agents(target_app_path: str):
         except Exception as e:
             print(f"   ⚠️ Sync warning for '{agent_display_name}': {e}")
 
-def run_cli_command(args: list[str]):
+def run_cli_command(args: List[str]):
     clean_pycache()
     try:
         subprocess.run(args, check=True)
