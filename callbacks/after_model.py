@@ -1,10 +1,23 @@
 from typing import Dict, Any, List
 
-def after_model_callback(model_response: Any, context: Any) -> Any:
+def after_model_callback(arg1: Any = None, arg2: Any = None, *args, **kwargs) -> Any:
     """
     Hook executed after the model responds to format and attach structured JSON widget payloads.
-    Compatible with CX Agent Studio CallbackContext object and dict context.
+    Supports both (callback_context, model_response) and (model_response, callback_context) signatures.
     """
+    if hasattr(arg1, "state") or hasattr(arg1, "variables"):
+        context = arg1
+        model_response = arg2 if isinstance(arg2, dict) else {}
+    elif hasattr(arg2, "state") or hasattr(arg2, "variables"):
+        model_response = arg1 if isinstance(arg1, dict) else {}
+        context = arg2
+    else:
+        model_response = arg1 if isinstance(arg1, dict) else {}
+        context = arg2
+
+    if not isinstance(model_response, dict):
+        model_response = {}
+
     if hasattr(context, "state") and context.state is not None:
         state = context.state
     elif isinstance(context, dict):
@@ -47,7 +60,7 @@ def after_model_callback(model_response: Any, context: Any) -> Any:
                 ]
             })
 
-    if custom_payloads and isinstance(model_response, dict):
+    if custom_payloads:
         model_response["rich_widgets"] = custom_payloads
 
     return model_response
