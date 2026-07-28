@@ -5,11 +5,5 @@
   "model": "gemini-3.5-flash",
   "tools": [
     "submit_feedback"
-  ],
-  "beforeAgentCallbacks": [
-    "before_agent_callback"
-  ],
-  "afterToolCallbacks": [
-    "after_tool_callback"
   ]
 }

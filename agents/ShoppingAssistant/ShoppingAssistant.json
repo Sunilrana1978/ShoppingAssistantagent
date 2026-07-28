@@ -10,17 +10,5 @@
     "add_to_cart",
     "get_cart",
     "remove_from_cart"
-  ],
-  "beforeAgentCallbacks": [
-    "before_agent_callback"
-  ],
-  "beforeToolCallbacks": [
-    "before_tool_callback"
-  ],
-  "afterToolCallbacks": [
-    "after_tool_callback"
-  ],
-  "afterModelCallbacks": [
-    "after_model_callback"
   ]
 }
