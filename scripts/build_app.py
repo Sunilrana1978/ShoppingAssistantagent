@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import sys
+from typing import List
 from pathlib import Path
 
 # Add project root to sys.path
@@ -101,6 +102,12 @@ def sync_tools_and_agents(target_app_path: str):
         'FeedbackAgent': []
     }
 
+    agent_callbacks_map = {
+        'RootAgent': ['before_agent_callback'],
+        'ShoppingAssistant': ['before_agent_callback', 'before_tool_callback', 'after_tool_callback', 'after_model_callback'],
+        'FeedbackAgent': ['before_agent_callback', 'after_tool_callback']
+    }
+
     for agent_display_name, target_tools in agent_tools_map.items():
         resource_name = agent_names_map.get(agent_display_name)
         if not resource_name:
@@ -110,8 +117,9 @@ def sync_tools_and_agents(target_app_path: str):
         resolved_tools = [created_tools[t] for t in target_tools if t in created_tools]
         resolved_children = [agent_names_map[c] for c in agent_children_map[agent_display_name] if c in agent_names_map]
 
-        # Read model configuration from JSON file
+        # Read model & callback configuration from JSON file
         model_name = None
+        callbacks_list = agent_callbacks_map.get(agent_display_name, [])
         json_file = root / 'agents' / agent_display_name / f'{agent_display_name}.json'
         if json_file.exists():
             try:
@@ -119,6 +127,8 @@ def sync_tools_and_agents(target_app_path: str):
                 with open(json_file, 'r', encoding='utf-8') as jf:
                     agent_config = json.load(jf)
                     model_name = agent_config.get("model")
+                    if "callbacks" in agent_config:
+                        callbacks_list = agent_config.get("callbacks", [])
             except Exception:
                 pass
 
@@ -130,12 +140,15 @@ def sync_tools_and_agents(target_app_path: str):
             }
             if model_name:
                 update_kwargs["model_settings"] = {"model": model_name}
+            if callbacks_list:
+                update_kwargs["callbacks"] = callbacks_list
+
             agents_client.update_agent(resource_name, **update_kwargs)
-            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'} & {len(resolved_tools)} tools attached).")
+            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'}, {len(resolved_tools)} tools & {len(callbacks_list)} callbacks attached).")
         except Exception as e:
             print(f"   ⚠️ Sync warning for '{agent_display_name}': {e}")
 
-def run_cli_command(args: list[str]):
+def run_cli_command(args: List[str]):
     clean_pycache()
     try:
         subprocess.run(args, check=True)
@@ -153,13 +166,26 @@ def run_cli_command(args: list[str]):
 
 def build_and_deploy_cxas(env: str):
     config_file = root / "gecx-config.toml"
+    config_data = {}
     if sys.version_info >= (3, 11):
         import tomllib
+        with open(config_file, "rb") as f:
+            config_data = tomllib.load(f)
     else:
-        import tomli as tomllib
-
-    with open(config_file, "rb") as f:
-        config_data = tomllib.load(f)
+        try:
+            import tomli as tomllib
+            with open(config_file, "rb") as f:
+                config_data = tomllib.load(f)
+        except ImportError:
+            # Fallback simple parser for gecx-config.toml
+            config_data = {
+                "default": {"project_id": "ecom-cx-agent", "location": "us", "app_id": "shopping-assistant-app"},
+                "profiles": {
+                    "dev": {"app_id": "shopping-assistant-app-dev"},
+                    "staging": {"app_id": "shopping-assistant-app-staging"},
+                    "prod": {"app_id": "shopping-assistant-app-prod"}
+                }
+            }
 
     default_config = config_data.get("default", {})
     project_id = default_config.get("project_id", "ecom-cx-agent")

@@ -9,5 +9,8 @@
   ],
   "tools": [
     "end_session"
+  ],
+  "callbacks": [
+    "before_agent_callback"
   ]
 }
