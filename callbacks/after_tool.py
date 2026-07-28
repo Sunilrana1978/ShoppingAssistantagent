@@ -5,13 +5,28 @@ try:
 except ImportError:
     cart_service = None
 
-def after_tool_callback(tool_name: str, tool_output: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+def after_tool_callback(tool: Any, tool_input: Any = None, callback_context: Any = None, tool_response: Any = None) -> Any:
     """
     Hook executed after a tool call finishes.
-    Recomputes cart pricing server-side when cart tools complete and tracks feedback state.
-    Compatible with local service mocks and CX Agent Studio sandbox execution.
+    Signature expected by CX Agent Studio:
+    (tool: Tool, tool_input: dict[str, Any], callback_context: CallbackContext, tool_response: dict[str, Any]) -> dict
     """
-    state = context.get("state", {})
+    # Support 3-arg call fallback for local tests: (tool_name, tool_output, context)
+    if tool_response is None and isinstance(tool_input, dict) and isinstance(callback_context, dict):
+        tool_name = str(tool)
+        tool_output = tool_input
+        context = callback_context
+    else:
+        tool_name = getattr(tool, "name", str(tool)) if tool else ""
+        context = callback_context if isinstance(callback_context, dict) else (getattr(callback_context, "__dict__", {}) or {})
+        tool_output = tool_response if tool_response is not None else (tool_input if isinstance(tool_input, dict) else {})
+
+    if not isinstance(context, dict):
+        context = {}
+    if "state" not in context:
+        context["state"] = {}
+
+    state = context["state"]
     session_id = state.get("session_id", "sess_default")
     discount_pct = float(state.get("discount_pct", 0))
 
@@ -36,7 +51,6 @@ def after_tool_callback(tool_name: str, tool_output: Dict[str, Any], context: Di
                 state["cart"] = updated_cart
                 tool_output["cart"] = updated_cart
             else:
-                # Inline cart calculation fallback for CXAS sandbox
                 cart = state.get("cart", {"items": [], "subtotal": 0.0, "discount_pct": discount_pct, "discount_amount": 0.0, "total": 0.0})
                 if isinstance(tool_output, dict) and "cart" in tool_output:
                     cart = tool_output["cart"]
