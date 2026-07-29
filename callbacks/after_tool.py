@@ -26,11 +26,9 @@ def after_tool_callback(
     Executes after a tool call finishes to update session variables
     and recompute cart pricing.
 
-    GCP Documentation signature:
-        tool             — the Tool instance that was called
-        input            — dict of input arguments passed to the tool
-        callback_context — CallbackContext; use callback_context.variables for session vars
-        tool_response    — dict returned by the tool function
+    Supports both:
+    1. CXAS runtime 4-arg signature: (tool, input, callback_context, tool_response)
+    2. Simulation 3-arg signature: (tool_name, tool_response, callback_context)
     """
     if tool_response is None and callback_context is not None:
         tool_name = str(tool)
@@ -69,44 +67,31 @@ def after_tool_callback(
     discount_pct = float(session_vars.get("discount_pct", 0))
 
     # ------------------------------------------------------------------
-    # Cart operations: add_to_cart, get_cart, remove_from_cart
+    # Cart mutation tools: recalculate totals server-side
     # ------------------------------------------------------------------
-    if tool_name in ["add_to_cart", "get_cart", "remove_from_cart"]:
-        if tool_output.get("status") == "success":
-            if cart_service:
-                if tool_name == "add_to_cart" and "added_item" in tool_output:
-                    added = tool_output["added_item"]
-                    cart_service.add_item(
-                        session_id=session_id,
-                        sku=added.get("sku"),
-                        qty=int(added.get("qty", 1)),
-                        size=added.get("size"),
-                    )
-                elif tool_name == "remove_from_cart" and "removed_sku" in tool_output:
-                    cart_service.remove_item(
-                        session_id=session_id,
-                        sku=tool_output["removed_sku"],
-                    )
+    if tool_name in ("add_to_cart", "remove_from_cart", "get_cart"):
+        if cart_service:
+            if tool_name == "add_to_cart" and "product_id" in tool_output:
+                cart_service.add_to_cart(
+                    session_id,
+                    tool_output.get("product_id"),
+                    tool_output.get("quantity", 1),
+                )
+            elif tool_name == "remove_from_cart" and "product_id" in tool_output:
+                cart_service.remove_from_cart(
+                    session_id,
+                    tool_output.get("product_id"),
+                )
 
-                updated_cart = cart_service.update_cart_pricing(session_id, discount_pct)
-                set_var("cart", updated_cart)
-                tool_output["cart"] = updated_cart
-            else:
-                # Fallback: recompute cart pricing without cart_service
-                cart = session_vars.get(
-                    "cart",
-                    {"items": [], "subtotal": 0.0, "discount_pct": discount_pct,
-                     "discount_amount": 0.0, "total": 0.0},
-                )
-                if "cart" in tool_output:
-                    cart = tool_output["cart"]
-                subtotal = sum(
-                    float(item.get("price", 0.0)) * int(item.get("qty", 1))
-                    for item in cart.get("items", [])
-                )
+            updated_cart = cart_service.update_cart_pricing(session_id, discount_pct)
+            set_var("cart", updated_cart)
+            tool_output["cart"] = updated_cart
+        else:
+            if session_vars.get("cart"):
+                cart = dict(session_vars["cart"])
+                subtotal = float(cart.get("subtotal", 0.0))
                 disc_amt = round(subtotal * (discount_pct / 100.0), 2)
                 cart.update({
-                    "subtotal": subtotal,
                     "discount_pct": discount_pct,
                     "discount_amount": disc_amt,
                     "total": round(subtotal - disc_amt, 2),
@@ -115,7 +100,7 @@ def after_tool_callback(
                 tool_output["cart"] = cart
 
     # ------------------------------------------------------------------
-    # get_discount: persist discount_pct and recompute cart
+    # get_discount: update discount_pct and recalculate cart
     # ------------------------------------------------------------------
     elif tool_name == "get_discount":
         if "discount_pct" in tool_output:
