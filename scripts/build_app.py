@@ -6,6 +6,7 @@ Supports environments: dev, staging, prod.
 
 import sys
 import os
+import json
 import argparse
 import subprocess
 from pathlib import Path
@@ -37,12 +38,78 @@ def sync_tools_and_agents(target_app_path: str):
     try:
         from cxas_scrapi.core.agents import Agents
         from cxas_scrapi.core.tools import Tools
+        from cxas_scrapi.core.variables import Variables
         
         agents_client = Agents(app_name=target_app_path)
         tools_client = Tools(app_name=target_app_path)
+        vars_client = Variables(app_name=target_app_path)
     except ImportError as e:
         print(f"⚠️ cxas_scrapi not available: {e}")
         return
+
+    # ------------------------------------------------------------------
+    # 0. Synchronize Session Variables from variables.json
+    # ------------------------------------------------------------------
+    print("\n   📦 Synchronizing Session Variables with CX Agent Studio...")
+    type_map = {
+        "string": "STRING",
+        "number": "NUMBER",
+        "integer": "INTEGER",
+        "boolean": "BOOLEAN",
+        "array": "ARRAY",
+        "object": "OBJECT"
+    }
+
+    try:
+        from google.cloud.ces_v1beta import types
+        app_obj = vars_client.get_app(target_app_path)
+        existing_vars = {v.name: v for v in getattr(app_obj, "variable_declarations", [])}
+        updated_vars_list = list(getattr(app_obj, "variable_declarations", []))
+        has_new = False
+
+        for agent_dir in sorted((root / 'agents').iterdir()):
+            if not agent_dir.is_dir():
+                continue
+            vfile = agent_dir / 'variables.json'
+            if not vfile.exists():
+                continue
+            with open(vfile, 'r', encoding='utf-8') as vf:
+                vdata = json.load(vf)
+
+            # Static variables
+            for var_name, default_val in vdata.get('static', {}).items():
+                if var_name not in existing_vars:
+                    new_var = types.App.VariableDeclaration(
+                        name=var_name,
+                        schema={"type_": "STRING", "default": str(default_val)}
+                    )
+                    updated_vars_list.append(new_var)
+                    existing_vars[var_name] = new_var
+                    has_new = True
+                    print(f"      ✅ Variable '{var_name}' (STATIC STRING = '{default_val}') created.")
+
+            # Dynamic variables
+            for var_name, var_meta in vdata.get('dynamic', {}).items():
+                if var_name not in existing_vars:
+                    raw_type = var_meta.get("type", "string").lower() if isinstance(var_meta, dict) else "string"
+                    var_type_str = type_map.get(raw_type, "STRING")
+                    new_var = types.App.VariableDeclaration(
+                        name=var_name,
+                        schema={"type_": var_type_str, "default": None}
+                    )
+                    updated_vars_list.append(new_var)
+                    existing_vars[var_name] = new_var
+                    has_new = True
+                    print(f"      ✅ Variable '{var_name}' (DYNAMIC {var_type_str}) created.")
+
+        if has_new:
+            vars_client.update_app(target_app_path, variable_declarations=updated_vars_list)
+            print(f"   ✅ All {len(existing_vars)} session variables synchronized to CXAS app successfully.")
+        else:
+            print(f"   ✅ All {len(existing_vars)} session variables are already synchronized on CXAS app.")
+
+    except Exception as e:
+        print(f"   ⚠️ Warning synchronizing variables: {e}")
 
     # Tools definition map
     tools_def = [
@@ -56,7 +123,9 @@ def sync_tools_and_agents(target_app_path: str):
         ('end_session', 'tools/end_session.py', 'Ends conversation session')
     ]
 
-    created_tools = {}
+    created_tools = {
+        'end_session': f"{target_app_path}/tools/end_session"
+    }
     for tool_id, tool_rel_path, desc in tools_def:
         tool_file = root / tool_rel_path
         if not tool_file.exists():
@@ -99,8 +168,8 @@ def sync_tools_and_agents(target_app_path: str):
     agent_names_map = {a.display_name: a.name for a in agents_client.list_agents()}
     agent_tools_map = {
         'RootAgent': ['end_session'],
-        'ShoppingAssistant': ['get_user_profile', 'get_discount', 'search_catalog', 'add_to_cart', 'get_cart', 'remove_from_cart'],
-        'FeedbackAgent': ['submit_feedback']
+        'ShoppingAssistant': ['get_user_profile', 'get_discount', 'search_catalog', 'add_to_cart', 'get_cart', 'remove_from_cart', 'end_session'],
+        'FeedbackAgent': ['submit_feedback', 'end_session']
     }
     agent_children_map = {
         'RootAgent': ['ShoppingAssistant', 'FeedbackAgent'],
@@ -129,16 +198,14 @@ def sync_tools_and_agents(target_app_path: str):
         }
     }
 
-    for agent_display_name, target_tools in agent_tools_map.items():
+    for agent_display_name, default_tools in agent_tools_map.items():
         resource_name = agent_names_map.get(agent_display_name)
         if not resource_name:
             continue
         inst_file = root / 'agents' / agent_display_name / 'instruction.txt'
         instruction_text = inst_file.read_text(encoding='utf-8') if inst_file.exists() else ""
-        resolved_tools = [created_tools[t] for t in target_tools if t in created_tools]
         resolved_children = [agent_names_map[c] for c in agent_children_map[agent_display_name] if c in agent_names_map]
 
-        import json
         model_name = None
         json_file = root / 'agents' / agent_display_name / f'{agent_display_name}.json'
         agent_config = {}
@@ -149,6 +216,9 @@ def sync_tools_and_agents(target_app_path: str):
                     model_name = agent_config.get("model")
             except Exception:
                 pass
+
+        target_tools = agent_config.get("tools", default_tools)
+        resolved_tools = [created_tools[t] for t in target_tools if t in created_tools]
 
         # Load session variables declared in variables.json.
         # These MUST be synced to CXAS so that {variable_name} placeholders
@@ -205,15 +275,32 @@ def main():
     parser.add_argument("--env", choices=["dev", "staging", "prod"], default="dev", help="Target environment")
     parser.add_argument("--project", default="ecom-cx-agent", help="GCP Project ID")
     parser.add_argument("--location", default="us", help="GCP Region/Location")
-    parser.add_argument("--app-id", default="shopping-assistant-app", help="CX Agent Studio App ID")
+    parser.add_argument("--app-id", default=None, help="CX Agent Studio App ID")
     args = parser.parse_args()
+
+    app_id = args.app_id
+    if not app_id:
+        config_path = Path(__file__).parent.parent / "gecx-config.toml"
+        if config_path.exists():
+            try:
+                try:
+                    import tomllib
+                except ImportError:
+                    import tomli as tomllib
+                with open(config_path, "rb") as f:
+                    cfg = tomllib.load(f)
+                app_id = cfg.get("profiles", {}).get(args.env, {}).get("app_id")
+            except Exception:
+                pass
+        if not app_id:
+            app_id = f"shopping-assistant-app-{args.env}" if args.env != "prod" else "shopping-assistant-app"
 
     print(f"==========================================================")
     print(f"🚀 DEPLOYING SPORTING GOODS MULTI-AGENT APP [{args.env.upper()}]")
     print(f"==========================================================")
-    print(f"📍 Project: {args.project} | Location: {args.location} | App ID: {args.app_id}")
+    print(f"📍 Project: {args.project} | Location: {args.location} | App ID: {app_id}")
 
-    target_app_path = f"projects/{args.project}/locations/{args.location}/apps/{args.app_id}"
+    target_app_path = f"projects/{args.project}/locations/{args.location}/apps/{app_id}"
     
     # 1. Clean pycache
     clean_pycache()

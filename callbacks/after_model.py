@@ -1,7 +1,14 @@
 from typing import Optional, Any, Dict, List
 
-from google.adk.agents.callback_context import CallbackContext
-from google.genai import types
+try:
+    from google.adk.agents.callback_context import CallbackContext
+except ImportError:
+    CallbackContext = Any
+
+try:
+    from google.genai import types
+except ImportError:
+    types = Any
 
 
 def after_model_callback(

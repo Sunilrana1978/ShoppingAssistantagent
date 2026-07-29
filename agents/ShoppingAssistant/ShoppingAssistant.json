@@ -9,6 +9,7 @@
     "search_catalog",
     "add_to_cart",
     "get_cart",
-    "remove_from_cart"
+    "remove_from_cart",
+    "end_session"
   ]
 }

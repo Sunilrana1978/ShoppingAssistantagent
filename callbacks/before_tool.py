@@ -1,28 +1,36 @@
 from typing import Optional, Any
 
-from google.adk.agents.callback_context import CallbackContext
-from google.adk.tools import BaseTool
+try:
+    from google.adk.agents.callback_context import CallbackContext
+except ImportError:
+    CallbackContext = Any
+
+try:
+    from google.adk.tools import BaseTool
+except ImportError:
+    BaseTool = Any
 
 
 def before_tool_callback(
-    tool: BaseTool,
-    args: dict,
-    tool_context: CallbackContext,
+    tool: Any,
+    input: dict,
+    callback_context: Any,
 ) -> Optional[Any]:
     """
     Executes before a tool runs to sanitize and validate input arguments.
 
-    ADK signature:
-        tool         — the BaseTool instance about to be called
-        args         — dict of arguments the LLM is passing to the tool
-        tool_context — CallbackContext; use tool_context.variables for session vars
+    GCP Documentation signature:
+        tool             — the Tool instance about to be called
+        input            — dict of input arguments passed to the tool
+        callback_context — CallbackContext; use callback_context.variables for session vars
 
     Returns:
         None      → proceed normally with the (possibly mutated) args.
         Any dict  → skip the tool call and use this as the tool response instead.
     """
+    args = input if isinstance(input, dict) else {}
     tool_name = getattr(tool, "name", str(tool)) if tool else ""
-    session_vars = tool_context.variables
+    session_vars = callback_context.variables
 
     # Inject session_id from session variables if the tool needs it
     if "session_id" not in args and session_vars.get("session_id"):

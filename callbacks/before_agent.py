@@ -1,7 +1,14 @@
-from typing import Optional
+from typing import Optional, Any
 
-from google.adk.agents.callback_context import CallbackContext
-from google.genai import types
+try:
+    from google.adk.agents.callback_context import CallbackContext
+except ImportError:
+    CallbackContext = Any
+
+try:
+    from google.genai import types
+except ImportError:
+    types = Any
 
 try:
     from services.user_service import user_service
@@ -9,7 +16,7 @@ except ImportError:
     user_service = None
 
 
-def before_agent_callback(callback_context: CallbackContext) -> Optional[types.Content]:
+def before_agent_callback(callback_context: Any) -> Optional[Any]:
     """
     Executes at the beginning of each agent turn.
 
@@ -28,12 +35,14 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[types.C
 
         # --- Short-circuit override (maintenance / kill-switch) -----------
         if session_vars.get("skip_llm_agent") is True:
-            return types.Content(
-                parts=[types.Part.from_text(
-                    text="The system is undergoing routine maintenance. "
-                         "Please try again later."
-                )]
-            )
+            if types and hasattr(types, "Content") and hasattr(types, "Part"):
+                return types.Content(
+                    parts=[types.Part.from_text(
+                        text="The system is undergoing routine maintenance. "
+                             "Please try again later."
+                    )]
+                )
+            return {"parts": [{"text": "The system is undergoing routine maintenance. Please try again later."}]}
 
         # --- Extract user_id from session variables -----------------------
         user_id = session_vars.get("user_id", None)
