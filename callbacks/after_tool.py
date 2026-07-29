@@ -1,14 +1,7 @@
 from typing import Optional, Any, Dict, List
 
-try:
-    from google.adk.agents.callback_context import CallbackContext
-except ImportError:
-    CallbackContext = Any
-
-try:
-    from google.adk.tools import BaseTool
-except ImportError:
-    BaseTool = Any
+from google.adk.agents.callback_context import CallbackContext
+from google.adk.tools import BaseTool
 
 try:
     from services.cart_service import cart_service
@@ -17,53 +10,31 @@ except ImportError:
 
 
 def after_tool_callback(
-    tool: Any,
-    input: Any = None,
-    callback_context: Any = None,
-    tool_response: Any = None,
+    tool: BaseTool,
+    input: dict,
+    callback_context: CallbackContext,
+    tool_response: Any,
 ) -> Optional[Any]:
     """
     Executes after a tool call finishes to update session variables
     and recompute cart pricing.
 
-    GCP Documentation signature:
-        tool             — the Tool instance that was called
-        input            — dict of input arguments passed to the tool
+    CXAS/ADK signature:
+        tool             — the BaseTool instance that was called
+        input            — the arguments that were passed to the tool
         callback_context — CallbackContext; use callback_context.variables for session vars
-        tool_response    — dict returned by the tool function
+        tool_response    — the raw dict returned by the tool function
+
+    Returns:
+        None      → the original tool_response is passed back to the LLM as-is.
+        Any dict  → this value is passed to the LLM instead of tool_response.
+
+    ⚠️  Parameter names MUST match what the CXAS runtime injects by keyword:
+        'input' (not 'args') and 'callback_context' (not 'tool_context').
     """
-    if tool_response is None and callback_context is not None:
-        tool_name = str(tool)
-        tool_output = input if isinstance(input, dict) else {}
-        context_obj = callback_context
-    else:
-        tool_name = getattr(tool, "name", str(tool)) if tool else ""
-        tool_output = tool_response if isinstance(tool_response, dict) else (input if isinstance(input, dict) else {})
-        context_obj = callback_context if callback_context is not None else input
-
-    if hasattr(context_obj, "variables") and isinstance(getattr(context_obj, "variables"), dict):
-        session_vars = context_obj.variables
-    elif isinstance(context_obj, dict):
-        if "variables" in context_obj and isinstance(context_obj["variables"], dict):
-            session_vars = context_obj["variables"]
-        elif "state" in context_obj and isinstance(context_obj["state"], dict):
-            session_vars = context_obj["state"]
-        else:
-            session_vars = context_obj
-    else:
-        session_vars = {}
-
-    def set_var(key: str, val: Any):
-        session_vars[key] = val
-        if hasattr(context_obj, "variables") and isinstance(getattr(context_obj, "variables"), dict):
-            context_obj.variables[key] = val
-        elif isinstance(context_obj, dict):
-            if "variables" in context_obj and isinstance(context_obj["variables"], dict):
-                context_obj["variables"][key] = val
-            elif "state" in context_obj and isinstance(context_obj["state"], dict):
-                context_obj["state"][key] = val
-            else:
-                context_obj[key] = val
+    tool_name = getattr(tool, "name", str(tool)) if tool else ""
+    session_vars = callback_context.variables
+    tool_output = tool_response if isinstance(tool_response, dict) else {}
 
     session_id = session_vars.get("session_id", "sess_default")
     discount_pct = float(session_vars.get("discount_pct", 0))
@@ -89,7 +60,7 @@ def after_tool_callback(
                     )
 
                 updated_cart = cart_service.update_cart_pricing(session_id, discount_pct)
-                set_var("cart", updated_cart)
+                callback_context.variables["cart"] = updated_cart
                 tool_output["cart"] = updated_cart
             else:
                 # Fallback: recompute cart pricing without cart_service
@@ -111,7 +82,7 @@ def after_tool_callback(
                     "discount_amount": disc_amt,
                     "total": round(subtotal - disc_amt, 2),
                 })
-                set_var("cart", cart)
+                callback_context.variables["cart"] = cart
                 tool_output["cart"] = cart
 
     # ------------------------------------------------------------------
@@ -120,10 +91,10 @@ def after_tool_callback(
     elif tool_name == "get_discount":
         if "discount_pct" in tool_output:
             new_pct = tool_output["discount_pct"]
-            set_var("discount_pct", new_pct)
+            callback_context.variables["discount_pct"] = new_pct
             if cart_service:
                 updated_cart = cart_service.update_cart_pricing(session_id, new_pct)
-                set_var("cart", updated_cart)
+                callback_context.variables["cart"] = updated_cart
             elif session_vars.get("cart"):
                 cart = dict(session_vars["cart"])
                 subtotal = float(cart.get("subtotal", 0.0))
@@ -133,29 +104,29 @@ def after_tool_callback(
                     "discount_amount": disc_amt,
                     "total": round(subtotal - disc_amt, 2),
                 })
-                set_var("cart", cart)
+                callback_context.variables["cart"] = cart
 
     # ------------------------------------------------------------------
     # get_user_profile: persist user_name and membership_tier
     # ------------------------------------------------------------------
     elif tool_name == "get_user_profile":
         name = tool_output.get("user_name") or tool_output.get("name") or "Shopper"
-        set_var("user_name", name)
-        set_var("membership_tier", tool_output.get("membership_tier", "none"))
+        callback_context.variables["user_name"] = name
+        callback_context.variables["membership_tier"] = tool_output.get("membership_tier", "none")
 
     # ------------------------------------------------------------------
     # search_catalog: cache results for after_model rich cards
     # ------------------------------------------------------------------
     elif tool_name == "search_catalog":
         if "products" in tool_output:
-            set_var("search_results", tool_output["products"])
+            callback_context.variables["search_results"] = tool_output["products"]
 
     # ------------------------------------------------------------------
     # submit_feedback: mark submission complete
     # ------------------------------------------------------------------
     elif tool_name == "submit_feedback":
         if tool_output.get("status") == "success":
-            set_var("feedback_submitted", True)
-            set_var("last_feedback_id", tool_output.get("feedback_id"))
+            callback_context.variables["feedback_submitted"] = True
+            callback_context.variables["last_feedback_id"] = tool_output.get("feedback_id")
 
     return tool_output

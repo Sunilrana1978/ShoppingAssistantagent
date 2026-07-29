@@ -2,7 +2,7 @@
   "name": "ShoppingAssistant",
   "displayName": "ShoppingAssistant",
   "description": "Primary conversational assistant for product discovery, discounts, and cart management.",
-  "model": "gemini-3.5-flash",
+  "model": "gemini-2.5-flash",
   "tools": [
     "get_user_profile",
     "get_discount",

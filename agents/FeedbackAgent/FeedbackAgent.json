@@ -2,7 +2,7 @@
   "name": "FeedbackAgent",
   "displayName": "FeedbackAgent",
   "description": "Specialized assistant for collecting customer feedback, store reviews, and star ratings.",
-  "model": "gemini-3.5-flash",
+  "model": "gemini-2.5-flash",
   "tools": [
     "submit_feedback",
     "end_session"

@@ -2,7 +2,7 @@
   "name": "RootAgent",
   "displayName": "RootAgent",
   "description": "Central supervisor agent for routing user requests.",
-  "model": "gemini-3.5-flash",
+  "model": "gemini-2.5-flash",
   "childAgents": [
     "ShoppingAssistant",
     "FeedbackAgent"

@@ -112,23 +112,32 @@ def sync_tools_and_agents(target_app_path: str):
         print(f"   ⚠️ Warning synchronizing variables: {e}")
 
     # Tools definition map
+    # Each entry: (tool_id, description)
+    # Code is read from the Scrapi-canonical path:
+    #   tools/<tool_id>/python_function/python_code.py
+    # Falls back to the flat tools/<tool_id>.py if the canonical path is absent.
     tools_def = [
-        ('get_user_profile', 'tools/get_user_profile.py', 'Retrieves user profile and tier'),
-        ('get_discount', 'tools/get_discount.py', 'Calculates tier discount percentage'),
-        ('search_catalog', 'tools/search_catalog.py', 'Searches product catalog'),
-        ('add_to_cart', 'tools/add_to_cart.py', 'Adds items to cart'),
-        ('get_cart', 'tools/get_cart.py', 'Retrieves current cart'),
-        ('remove_from_cart', 'tools/remove_from_cart.py', 'Removes item from cart'),
-        ('submit_feedback', 'tools/submit_feedback.py', 'Submits user feedback'),
-        ('end_session', 'tools/end_session.py', 'Ends conversation session')
+        ('get_user_profile', 'Retrieves user profile and tier'),
+        ('get_discount',     'Calculates tier discount percentage'),
+        ('search_catalog',   'Searches product catalog'),
+        ('add_to_cart',      'Adds items to cart'),
+        ('get_cart',         'Retrieves current cart'),
+        ('remove_from_cart', 'Removes item from cart'),
+        ('submit_feedback',  'Submits user feedback'),
+        ('end_session',      'Ends conversation session'),
     ]
 
     created_tools = {
         'end_session': f"{target_app_path}/tools/end_session"
     }
-    for tool_id, tool_rel_path, desc in tools_def:
-        tool_file = root / tool_rel_path
+    for tool_id, desc in tools_def:
+        # Canonical Scrapi path (preferred)
+        canonical = root / 'tools' / tool_id / 'python_function' / 'python_code.py'
+        # Legacy flat-file fallback
+        flat = root / 'tools' / f'{tool_id}.py'
+        tool_file = canonical if canonical.exists() else flat
         if not tool_file.exists():
+            print(f"   ⚠️  Tool '{tool_id}' source not found — skipping.")
             continue
         code = tool_file.read_text(encoding='utf-8')
         payload = {
@@ -139,7 +148,8 @@ def sync_tools_and_agents(target_app_path: str):
         try:
             tool = tools_client.create_tool(tool_id=tool_id, display_name=tool_id, payload=payload)
             created_tools[tool_id] = getattr(tool, 'name', f"{target_app_path}/tools/{tool_id}")
-            print(f"   ✅ Tool '{tool_id}' synchronized.")
+            src = 'canonical' if canonical.exists() else 'flat'
+            print(f"   ✅ Tool '{tool_id}' synchronized (source: {src}).")
         except Exception:
             if hasattr(tools_client, 'list_tools'):
                 try:
@@ -220,22 +230,8 @@ def sync_tools_and_agents(target_app_path: str):
         target_tools = agent_config.get("tools", default_tools)
         resolved_tools = [created_tools[t] for t in target_tools if t in created_tools]
 
-        # Load session variables declared in variables.json.
-        # These MUST be synced to CXAS so that {variable_name} placeholders
-        # in instruction templates are recognised and resolved at runtime.
-        agent_variables = {}
-        vars_file = root / 'agents' / agent_display_name / 'variables.json'
-        if vars_file.exists():
-            try:
-                with open(vars_file, 'r', encoding='utf-8') as vf:
-                    vars_data = json.load(vf)
-                # Merge static + dynamic variable declarations into a flat dict
-                # keyed by variable name with their metadata as the value.
-                agent_variables.update(vars_data.get('static', {}))
-                agent_variables.update(vars_data.get('dynamic', {}))
-            except Exception as e:
-                print(f"   ⚠️ Could not load variables.json for '{agent_display_name}': {e}")
-
+        # Note: session variables are synced at the app level via vars_client.update_app()
+        # in the block above. No per-agent session_parameters push is needed here.
         default_cbs = agent_callbacks_map.get(agent_display_name, {})
         bac = agent_config.get("beforeAgentCallbacks", default_cbs.get("before_agent", []))
         btc = agent_config.get("beforeToolCallbacks", default_cbs.get("before_tool", []))
@@ -266,7 +262,7 @@ def sync_tools_and_agents(target_app_path: str):
 
             agents_client.update_agent(resource_name, **update_kwargs)
             total_cbs = len(before_agent_cbs) + len(before_tool_cbs) + len(after_tool_cbs) + len(after_model_cbs)
-            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'}, {len(resolved_tools)} tools, {len(agent_variables)} session vars & {total_cbs} callbacks attached).")
+            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'}, {len(resolved_tools)} tools, {total_cbs} callbacks attached).")
         except Exception as e:
             print(f"   ⚠️ Sync warning for '{agent_display_name}': {e}")
 
