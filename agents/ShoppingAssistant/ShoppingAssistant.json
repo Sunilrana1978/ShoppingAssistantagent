@@ -3,18 +3,6 @@
   "displayName": "ShoppingAssistant",
   "description": "Primary conversational assistant for product discovery, discounts, and cart management.",
   "model": "gemini-3.5-flash",
-  "beforeAgentCallbacks": [
-    "before_agent_callback"
-  ],
-  "beforeToolCallbacks": [
-    "before_tool_callback"
-  ],
-  "afterToolCallbacks": [
-    "after_tool_callback"
-  ],
-  "afterModelCallbacks": [
-    "after_model_callback"
-  ],
   "tools": [
     "get_user_profile",
     "get_discount",

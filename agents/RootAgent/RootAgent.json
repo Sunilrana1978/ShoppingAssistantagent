@@ -3,9 +3,6 @@
   "displayName": "RootAgent",
   "description": "Central supervisor agent for routing user requests.",
   "model": "gemini-3.5-flash",
-  "beforeAgentCallbacks": [
-    "before_agent_callback"
-  ],
   "childAgents": [
     "ShoppingAssistant",
     "FeedbackAgent"
