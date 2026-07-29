@@ -7,15 +7,21 @@ except ImportError:
     user_service = None
 
 def extract_user_id_from_context(context: Any) -> Any:
-    """Extracts user_id from context using direct access, dict traversal, and string regex."""
+    """
+    Extracts user_id from context using direct variable getters, state dict,
+    protobuf underlying text representation (_pb), and recursive payload search.
+    """
     if context is None:
         return None
 
     # 1. Direct variable getter
     if hasattr(context, "get_variable"):
-        val = context.get_variable("user_id")
-        if val:
-            return val
+        try:
+            val = context.get_variable("user_id")
+            if val:
+                return val
+        except Exception:
+            pass
 
     # 2. Direct state dict
     if hasattr(context, "state") and isinstance(context.state, dict):
@@ -29,42 +35,55 @@ def extract_user_id_from_context(context: Any) -> Any:
         if val:
             return val
 
-    # 4. Deep regex search on string representation of context payload
-    try:
-        ctx_str = str(context)
-        match = re.search(r'["\']user_id["\']\s*:\s*["\']([^"\']+)["\']', ctx_str)
-        if match:
-            return match.group(1)
-    except Exception:
-        pass
-
-    # 5. Fallback model_dump
-    if hasattr(context, "model_dump"):
+    # 4. Extract text format from underlying protobuf object (_pb) and repr
+    full_str = ""
+    if hasattr(context, "_pb"):
         try:
-            raw_data = context.model_dump(by_alias=True)
-            def deep_search(data: Any, key: str, depth: int = 5) -> Any:
-                if depth <= 0 or not data:
-                    return None
-                if isinstance(data, dict):
-                    if key in data and data[key]:
-                        return data[key]
-                    for k, v in data.items():
-                        res = deep_search(v, key, depth - 1)
-                        if res:
-                            return res
-                elif isinstance(data, list):
-                    for item in data:
-                        res = deep_search(item, key, depth - 1)
-                        if res:
-                            return res
-                return None
-            val = deep_search(raw_data, "user_id")
-            if val:
-                return val
+            full_str += str(context._pb) + " "
         except Exception:
             pass
 
-    return None
+    try:
+        full_str += repr(context) + " " + str(context)
+    except Exception:
+        pass
+
+    # 5. Regex search across full_str for user_id (supports JSON, Protobuf text, Python dicts)
+    match = re.search(r'user_id["\']?\s*[:=]\s*["\']?([^"\',}\s]+)', full_str, re.IGNORECASE)
+    if match:
+        val = match.group(1).strip('"').strip("'").strip()
+        if val and val.lower() != "none" and val.lower() != "null":
+            return val
+
+    # 6. Deep dict search fallback
+    raw_data = None
+    if hasattr(context, "model_dump"):
+        try:
+            raw_data = context.model_dump(by_alias=True)
+        except Exception:
+            pass
+
+    if not raw_data and hasattr(context, "__dict__"):
+        raw_data = getattr(context, "__dict__", {})
+
+    def deep_search(data: Any, key: str, depth: int = 5) -> Any:
+        if depth <= 0 or not data:
+            return None
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if k.lower() == key.lower() and v:
+                    return v
+                res = deep_search(v, key, depth - 1)
+                if res:
+                    return res
+        elif isinstance(data, list):
+            for item in data:
+                res = deep_search(item, key, depth - 1)
+                if res:
+                    return res
+        return None
+
+    return deep_search(raw_data, "user_id")
 
 def before_agent_callback(callback_context: Any) -> Any:
     """
