@@ -33,13 +33,16 @@ def find_key_in_obj(obj: Any, key_name: str, max_depth: int = 4) -> Any:
                     return res
     return None
 
-def before_agent_callback(context: Any) -> Any:
+def before_agent_callback(callback_context: Any) -> Any:
     """
     Hook executed before agent invocation.
     Extracts user_id from context (including state, variables, events, and state_delta),
     queries user profile (name, tier) from user_service/backend database, and populates
-    user_id, user_name, and membership_tier into context state and return dict.
+    user_id, user_name, and membership_tier into callback_context state.
+    Must return None to satisfy CXAS _CallbackResult Optional[Content] contract.
     """
+    context = callback_context
+
     # 1. Extract user_id dynamically from context
     user_id = None
     if hasattr(context, "get_variable"):
@@ -75,15 +78,16 @@ def before_agent_callback(context: Any) -> Any:
     name = profile.get("user_name") or profile.get("name", "Shopper")
     tier = profile.get("membership_tier", "none")
 
-    # 4. Populate context state directly
+    # 4. Populate context state dynamically via set_variable and state dict
+    if hasattr(context, "set_variable"):
+        context.set_variable("user_id", user_id)
+        context.set_variable("user_name", name)
+        context.set_variable("membership_tier", tier)
+
     if hasattr(context, "state") and isinstance(context.state, dict):
         context.state["user_id"] = user_id
         context.state["user_name"] = name
         context.state["membership_tier"] = tier
-    elif hasattr(context, "set_variable"):
-        context.set_variable("user_id", user_id)
-        context.set_variable("user_name", name)
-        context.set_variable("membership_tier", tier)
     elif isinstance(context, dict):
         if "state" not in context:
             context["state"] = {}
@@ -91,9 +95,5 @@ def before_agent_callback(context: Any) -> Any:
         context["state"]["user_name"] = name
         context["state"]["membership_tier"] = tier
 
-    # 5. Return updated variables dict for CX Agent Studio stateDelta engine
-    return {
-        "user_id": user_id,
-        "user_name": name,
-        "membership_tier": tier
-    }
+    # MUST return None to pass CXAS _CallbackResult Optional[Content] validation
+    return None
