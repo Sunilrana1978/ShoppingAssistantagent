@@ -1,21 +1,49 @@
-from typing import Dict, Any, List
+from typing import Optional, Any, Dict, List
 
-def after_model_callback(model_response: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Hook executed after the model responds to format and attach structured JSON widget payloads.
-    """
-    state = context.get("state", {})
-    discount_pct = float(state.get("discount_pct", 0))
-    custom_payloads: List[Dict[str, Any]] = []
+try:
+    from google.adk.agents.callback_context import CallbackContext
+except ImportError:
+    CallbackContext = Any
 
-    # Check if search results exist and format product cards
-    if "search_results" in state and state["search_results"]:
-        for prod in state["search_results"][:3]:
+try:
+    from google.genai import types
+except ImportError:
+    types = Any
+
+
+def after_model_callback(
+    callback_context: CallbackContext,
+    llm_response: Any,
+) -> Optional[Any]:
+    """
+    Executes after the LLM responds to attach rich UI widget payloads
+    (product cards, etc.) to the model response.
+
+    ADK signature:
+        callback_context — CallbackContext; use callback_context.variables for session vars
+        llm_response     — the LlmResponse object returned by the model
+
+    Returns:
+        None            → the original llm_response is used as-is.
+        LlmResponse     → this response replaces the model's output.
+    """
+    try:
+        session_vars = callback_context.variables
+        discount_pct = float(session_vars.get("discount_pct", 0))
+        search_results = session_vars.get("search_results", [])
+
+        if not search_results:
+            return None
+
+        custom_payloads: List[Dict[str, Any]] = []
+
+        for prod in search_results[:3]:
             orig_price = float(prod.get("price", 0.0))
             disc_price = round(orig_price * (1.0 - discount_pct / 100.0), 2)
             subtitle = f"${orig_price:.2f} → ${disc_price:.2f}"
             if discount_pct > 0:
-                subtitle += f" ({state.get('membership_tier', '').capitalize()} {discount_pct:.0f}% off)"
+                tier = str(session_vars.get("membership_tier", "")).capitalize()
+                subtitle += f" ({tier} {discount_pct:.0f}% off)"
 
             custom_payloads.append({
                 "type": "info_card",
@@ -26,19 +54,28 @@ def after_model_callback(model_response: Dict[str, Any], context: Dict[str, Any]
                 "attributes": {
                     "Brand": prod.get("brand"),
                     "Category": prod.get("category", "").capitalize(),
-                    "Sizes": ", ".join(map(str, prod.get("sizes", [])))
+                    "Sizes": ", ".join(map(str, prod.get("sizes", []))),
                 },
                 "actions": [
                     {
                         "label": "Add to Cart",
                         "action_type": "postback",
-                        "payload": f"Add {prod.get('sku')} to cart"
+                        "payload": f"Add {prod.get('sku')} to cart",
                     }
-                ]
+                ],
             })
 
-    # Attach custom widget payloads if present
-    if custom_payloads:
-        model_response["rich_widgets"] = custom_payloads
+        if not custom_payloads:
+            return None
 
-    return model_response
+        # Attach rich widget payloads to the model response
+        if hasattr(llm_response, "custom_payload"):
+            llm_response.custom_payload = custom_payloads
+        elif isinstance(llm_response, dict):
+            llm_response["rich_widgets"] = custom_payloads
+
+    except Exception:
+        # Never block the response — return None to use llm_response as-is
+        pass
+
+    return None
