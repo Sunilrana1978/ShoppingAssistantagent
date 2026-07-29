@@ -138,17 +138,33 @@ def sync_tools_and_agents(target_app_path: str):
         resolved_tools = [created_tools[t] for t in target_tools if t in created_tools]
         resolved_children = [agent_names_map[c] for c in agent_children_map[agent_display_name] if c in agent_names_map]
 
+        import json
         model_name = None
         json_file = root / 'agents' / agent_display_name / f'{agent_display_name}.json'
         agent_config = {}
         if json_file.exists():
             try:
-                import json
                 with open(json_file, 'r', encoding='utf-8') as jf:
                     agent_config = json.load(jf)
                     model_name = agent_config.get("model")
             except Exception:
                 pass
+
+        # Load session variables declared in variables.json.
+        # These MUST be synced to CXAS so that {variable_name} placeholders
+        # in instruction templates are recognised and resolved at runtime.
+        agent_variables = {}
+        vars_file = root / 'agents' / agent_display_name / 'variables.json'
+        if vars_file.exists():
+            try:
+                with open(vars_file, 'r', encoding='utf-8') as vf:
+                    vars_data = json.load(vf)
+                # Merge static + dynamic variable declarations into a flat dict
+                # keyed by variable name with their metadata as the value.
+                agent_variables.update(vars_data.get('static', {}))
+                agent_variables.update(vars_data.get('dynamic', {}))
+            except Exception as e:
+                print(f"   ⚠️ Could not load variables.json for '{agent_display_name}': {e}")
 
         default_cbs = agent_callbacks_map.get(agent_display_name, {})
         bac = agent_config.get("beforeAgentCallbacks", default_cbs.get("before_agent", []))
@@ -180,7 +196,7 @@ def sync_tools_and_agents(target_app_path: str):
 
             agents_client.update_agent(resource_name, **update_kwargs)
             total_cbs = len(before_agent_cbs) + len(before_tool_cbs) + len(after_tool_cbs) + len(after_model_cbs)
-            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'}, {len(resolved_tools)} tools & {total_cbs} callbacks attached).")
+            print(f"   ✅ Agent '{agent_display_name}' synced (instruction, model={model_name or 'default'}, {len(resolved_tools)} tools, {len(agent_variables)} session vars & {total_cbs} callbacks attached).")
         except Exception as e:
             print(f"   ⚠️ Sync warning for '{agent_display_name}': {e}")
 
