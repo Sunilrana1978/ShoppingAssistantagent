@@ -9,6 +9,7 @@
   </persona>
   <context>
     Current Date: {current_date}
+    User ID: {user_id}
     User Name: {user_name}
   </context>
   <taskflow>

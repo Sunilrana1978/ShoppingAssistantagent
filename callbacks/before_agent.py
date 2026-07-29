@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 try:
@@ -6,64 +7,70 @@ except ImportError:
     user_service = None
 
 def extract_user_id_from_context(context: Any) -> Any:
-    """Extracts user_id from context state, variables, model_dump, or pydantic extra fields."""
+    """Extracts user_id from context using direct access, dict traversal, and string regex."""
     if context is None:
         return None
 
-    # 1. Check direct variable helpers
+    # 1. Direct variable getter
     if hasattr(context, "get_variable"):
         val = context.get_variable("user_id")
         if val:
             return val
 
+    # 2. Direct state dict
     if hasattr(context, "state") and isinstance(context.state, dict):
         val = context.state.get("user_id")
         if val:
             return val
 
+    # 3. Direct variables dict
     if hasattr(context, "variables") and isinstance(context.variables, dict):
         val = context.variables.get("user_id")
         if val:
             return val
 
-    # 2. Dump Pydantic model or dict to inspect raw JSON payload for updatedVariables
-    raw_data = None
+    # 4. Deep regex search on string representation of context payload
+    try:
+        ctx_str = str(context)
+        match = re.search(r'["\']user_id["\']\s*:\s*["\']([^"\']+)["\']', ctx_str)
+        if match:
+            return match.group(1)
+    except Exception:
+        pass
+
+    # 5. Fallback model_dump
     if hasattr(context, "model_dump"):
         try:
             raw_data = context.model_dump(by_alias=True)
+            def deep_search(data: Any, key: str, depth: int = 5) -> Any:
+                if depth <= 0 or not data:
+                    return None
+                if isinstance(data, dict):
+                    if key in data and data[key]:
+                        return data[key]
+                    for k, v in data.items():
+                        res = deep_search(v, key, depth - 1)
+                        if res:
+                            return res
+                elif isinstance(data, list):
+                    for item in data:
+                        res = deep_search(item, key, depth - 1)
+                        if res:
+                            return res
+                return None
+            val = deep_search(raw_data, "user_id")
+            if val:
+                return val
         except Exception:
             pass
 
-    if not raw_data and hasattr(context, "__dict__"):
-        raw_data = getattr(context, "__dict__", {})
-
-    if not raw_data and isinstance(context, dict):
-        raw_data = context
-
-    def deep_search(data: Any, key: str, depth: int = 5) -> Any:
-        if depth <= 0 or not data:
-            return None
-        if isinstance(data, dict):
-            if key in data and data[key]:
-                return data[key]
-            for k, v in data.items():
-                res = deep_search(v, key, depth - 1)
-                if res:
-                    return res
-        elif isinstance(data, list):
-            for item in data:
-                res = deep_search(item, key, depth - 1)
-                if res:
-                    return res
-        return None
-
-    return deep_search(raw_data, "user_id")
+    return None
 
 def before_agent_callback(callback_context: Any) -> Any:
     """
     Hook executed before agent invocation.
-    Extracts user_id from context (including state, updatedVariables, or message chunks),
-    queries backend user_service/database, and updates context state with user_name and membership_tier.
+    Extracts user_id from context payload, queries backend user database (mock_users/user_service),
+    and populates user_id, user_name, and membership_tier into callback_context state.
     Must return None to satisfy CXAS _CallbackResult Optional[Content] contract.
     """
     context = callback_context
