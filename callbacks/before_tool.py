@@ -1,30 +1,40 @@
-from typing import Any
+from typing import Optional, Any
 
-def before_tool_callback(tool: Any = None, tool_input: Any = None, callback_context: Any = None) -> Any:
+from google.adk.agents.callback_context import CallbackContext
+from google.adk.tools import BaseTool
+
+
+def before_tool_callback(
+    tool: BaseTool,
+    args: dict,
+    tool_context: CallbackContext,
+) -> Optional[Any]:
     """
-    Hook executed before a tool runs to sanitize and validate input arguments.
-    Supports (tool, tool_input, callback_context) signature expected by CX Agent Studio.
+    Executes before a tool runs to sanitize and validate input arguments.
+
+    ADK signature:
+        tool         — the BaseTool instance about to be called
+        args         — dict of arguments the LLM is passing to the tool
+        tool_context — CallbackContext; use tool_context.variables for session vars
+
+    Returns:
+        None      → proceed normally with the (possibly mutated) args.
+        Any dict  → skip the tool call and use this as the tool response instead.
     """
     tool_name = getattr(tool, "name", str(tool)) if tool else ""
-    tool_args = tool_input if isinstance(tool_input, dict) else (tool if isinstance(tool, dict) else {})
-    context = callback_context if callback_context is not None else (tool_input if hasattr(tool_input, "state") else None)
+    session_vars = tool_context.variables
 
-    if hasattr(context, "state") and context.state is not None:
-        state = context.state
-    elif isinstance(context, dict):
-        state = context.get("state", {})
-    else:
-        state = {}
+    # Inject session_id from session variables if the tool needs it
+    if "session_id" not in args and session_vars.get("session_id"):
+        args["session_id"] = session_vars.get("session_id")
 
-    if isinstance(tool_args, dict) and isinstance(state, dict):
-        if "session_id" not in tool_args and "session_id" in state:
-            tool_args["session_id"] = state["session_id"]
+    # Sanitize price_max for catalog search — must be a positive float
+    if tool_name == "search_catalog":
+        if args.get("price_max") is not None:
+            try:
+                args["price_max"] = abs(float(args["price_max"]))
+            except (ValueError, TypeError):
+                args["price_max"] = None
 
-        if tool_name == "search_catalog":
-            if "price_max" in tool_args and tool_args["price_max"] is not None:
-                try:
-                    tool_args["price_max"] = abs(float(tool_args["price_max"]))
-                except (ValueError, TypeError):
-                    tool_args["price_max"] = None
-
-    return tool_args
+    # Returning None lets the tool execute with the (possibly mutated) args
+    return None
