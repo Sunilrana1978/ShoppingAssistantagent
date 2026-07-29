@@ -8,7 +8,9 @@ except ImportError:
 def before_agent_callback(context: Any) -> Any:
     """
     Hook executed before agent invocation.
-    Fetches user profile based on user_id and populates context.state.
+    If user_id is present in context, fetches user profile and populates
+    user_name and membership_tier into context state.
+    Does NOT overwrite state if user_id is absent.
     """
     # 1. Extract user_id dynamically from context
     user_id = None
@@ -24,8 +26,12 @@ def before_agent_callback(context: Any) -> Any:
     if isinstance(user_id, str):
         user_id = user_id.strip('"').strip("'").strip()
 
-    # 2. Fetch user profile based on user_id
-    if user_service and user_id:
+    # 2. Only populate state if user_id is provided
+    if not user_id or user_id.lower() == "guest":
+        return None
+
+    # 3. Fetch user profile based on user_id
+    if user_service:
         profile = user_service.get_user_profile(user_id)
     else:
         mock_users = {
@@ -33,27 +39,24 @@ def before_agent_callback(context: Any) -> Any:
             "u_1030": {"name": "Jordan", "membership_tier": "silver"},
             "u_1031": {"name": "Taylor", "membership_tier": "bronze"}
         }
-        if user_id in mock_users:
-            profile = mock_users[user_id]
-        else:
-            profile = {"name": "Shopper", "membership_tier": "none"}
+        profile = mock_users.get(user_id, {"name": user_id.capitalize(), "membership_tier": "none"})
 
     name = profile.get("user_name") or profile.get("name", "Shopper")
     tier = profile.get("membership_tier", "none")
 
-    # 3. Populate context.state directly
+    # 4. Populate context state dynamically
     if hasattr(context, "state") and isinstance(context.state, dict):
-        context.state["user_id"] = user_id or "guest"
+        context.state["user_id"] = user_id
         context.state["user_name"] = name
         context.state["membership_tier"] = tier
     elif hasattr(context, "set_variable"):
-        context.set_variable("user_id", user_id or "guest")
+        context.set_variable("user_id", user_id)
         context.set_variable("user_name", name)
         context.set_variable("membership_tier", tier)
     elif isinstance(context, dict):
         if "state" not in context:
             context["state"] = {}
-        context["state"]["user_id"] = user_id or "guest"
+        context["state"]["user_id"] = user_id
         context["state"]["user_name"] = name
         context["state"]["membership_tier"] = tier
 
