@@ -131,6 +131,8 @@ def sync_tools_and_agents(target_app_path: str):
         'end_session': f"{target_app_path}/tools/end_session"
     }
     for tool_id, desc in tools_def:
+        if tool_id == 'end_session':
+            continue
         # Canonical Scrapi path (preferred)
         canonical = root / 'tools' / tool_id / 'python_function' / 'python_code.py'
         # Legacy flat-file fallback
