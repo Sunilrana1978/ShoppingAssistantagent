@@ -38,7 +38,7 @@ def before_agent_callback(context: Any) -> Any:
     Hook executed before agent invocation.
     Extracts user_id from context (including state, variables, events, and state_delta),
     queries user profile (name, tier) from user_service/backend database, and populates
-    user_id, user_name, and membership_tier into context state.
+    user_id, user_name, and membership_tier into context state and return dict.
     """
     # 1. Extract user_id dynamically from context
     user_id = None
@@ -75,7 +75,7 @@ def before_agent_callback(context: Any) -> Any:
     name = profile.get("user_name") or profile.get("name", "Shopper")
     tier = profile.get("membership_tier", "none")
 
-    # 4. Populate context state dynamically
+    # 4. Populate context state directly
     if hasattr(context, "state") and isinstance(context.state, dict):
         context.state["user_id"] = user_id
         context.state["user_name"] = name
@@ -91,4 +91,9 @@ def before_agent_callback(context: Any) -> Any:
         context["state"]["user_name"] = name
         context["state"]["membership_tier"] = tier
 
-    return None
+    # 5. Return updated variables dict for CX Agent Studio stateDelta engine
+    return {
+        "user_id": user_id,
+        "user_name": name,
+        "membership_tier": tier
+    }
