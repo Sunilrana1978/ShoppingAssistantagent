@@ -1,7 +1,14 @@
 from typing import Optional, Any, Dict, List
 
-from google.adk.agents.callback_context import CallbackContext
-from google.adk.tools import BaseTool
+try:
+    from google.adk.agents.callback_context import CallbackContext
+except ImportError:
+    CallbackContext = Any
+
+try:
+    from google.adk.tools import BaseTool
+except ImportError:
+    BaseTool = Any
 
 try:
     from services.cart_service import cart_service
