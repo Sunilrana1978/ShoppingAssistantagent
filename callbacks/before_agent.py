@@ -5,66 +5,78 @@ try:
 except ImportError:
     user_service = None
 
-def find_key_in_obj(obj: Any, key_name: str, max_depth: int = 4) -> Any:
-    """Recursively search for a key in nested dicts, events, or object properties."""
-    if max_depth <= 0 or obj is None:
+def extract_user_id_from_context(context: Any) -> Any:
+    """Extracts user_id from context state, variables, model_dump, or pydantic extra fields."""
+    if context is None:
         return None
-    if isinstance(obj, dict):
-        if key_name in obj and obj[key_name]:
-            return obj[key_name]
-        for k, v in obj.items():
-            if isinstance(v, (dict, list, object)):
-                res = find_key_in_obj(v, key_name, max_depth - 1)
+
+    # 1. Check direct variable helpers
+    if hasattr(context, "get_variable"):
+        val = context.get_variable("user_id")
+        if val:
+            return val
+
+    if hasattr(context, "state") and isinstance(context.state, dict):
+        val = context.state.get("user_id")
+        if val:
+            return val
+
+    if hasattr(context, "variables") and isinstance(context.variables, dict):
+        val = context.variables.get("user_id")
+        if val:
+            return val
+
+    # 2. Dump Pydantic model or dict to inspect raw JSON payload for updatedVariables
+    raw_data = None
+    if hasattr(context, "model_dump"):
+        try:
+            raw_data = context.model_dump(by_alias=True)
+        except Exception:
+            pass
+
+    if not raw_data and hasattr(context, "__dict__"):
+        raw_data = getattr(context, "__dict__", {})
+
+    if not raw_data and isinstance(context, dict):
+        raw_data = context
+
+    def deep_search(data: Any, key: str, depth: int = 5) -> Any:
+        if depth <= 0 or not data:
+            return None
+        if isinstance(data, dict):
+            if key in data and data[key]:
+                return data[key]
+            for k, v in data.items():
+                res = deep_search(v, key, depth - 1)
                 if res:
                     return res
-    elif isinstance(obj, list):
-        for item in obj:
-            res = find_key_in_obj(item, key_name, max_depth - 1)
-            if res:
-                return res
-    elif hasattr(obj, "__dict__"):
-        d = getattr(obj, "__dict__", {})
-        if isinstance(d, dict) and key_name in d and d[key_name]:
-            return d[key_name]
-        for k, v in d.items():
-            if not k.startswith("_"):
-                res = find_key_in_obj(v, key_name, max_depth - 1)
+        elif isinstance(data, list):
+            for item in data:
+                res = deep_search(item, key, depth - 1)
                 if res:
                     return res
-    return None
+        return None
+
+    return deep_search(raw_data, "user_id")
 
 def before_agent_callback(callback_context: Any) -> Any:
     """
     Hook executed before agent invocation.
-    Extracts user_id from context (including state, variables, events, and state_delta),
-    queries user profile (name, tier) from user_service/backend database, and populates
-    user_id, user_name, and membership_tier into callback_context state.
+    Extracts user_id from context (including state, updatedVariables, or message chunks),
+    queries backend user_service/database, and updates context state with user_name and membership_tier.
     Must return None to satisfy CXAS _CallbackResult Optional[Content] contract.
     """
     context = callback_context
 
-    # 1. Extract user_id dynamically from context
-    user_id = None
-    if hasattr(context, "get_variable"):
-        user_id = context.get_variable("user_id")
-
-    if not user_id and hasattr(context, "state") and isinstance(context.state, dict):
-        user_id = context.state.get("user_id")
-
-    if not user_id and hasattr(context, "variables") and isinstance(context.variables, dict):
-        user_id = context.variables.get("user_id")
-
-    if not user_id:
-        user_id = find_key_in_obj(context, "user_id")
+    user_id = extract_user_id_from_context(context)
 
     if isinstance(user_id, str):
         user_id = user_id.strip('"').strip("'").strip()
 
-    # 2. Only populate state if user_id is provided and valid
     if not user_id or user_id.lower() == "guest":
         return None
 
-    # 3. Fetch user profile based on user_id
+    # Fetch user profile based on user_id
     if user_service:
         profile = user_service.get_user_profile(user_id)
     else:
@@ -78,7 +90,7 @@ def before_agent_callback(callback_context: Any) -> Any:
     name = profile.get("user_name") or profile.get("name", "Shopper")
     tier = profile.get("membership_tier", "none")
 
-    # 4. Populate context state dynamically via set_variable and state dict
+    # Update state on context dynamically
     if hasattr(context, "set_variable"):
         context.set_variable("user_id", user_id)
         context.set_variable("user_name", name)
