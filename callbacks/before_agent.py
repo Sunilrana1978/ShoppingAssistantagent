@@ -5,12 +5,40 @@ try:
 except ImportError:
     user_service = None
 
+def find_key_in_obj(obj: Any, key_name: str, max_depth: int = 4) -> Any:
+    """Recursively search for a key in nested dicts, events, or object properties."""
+    if max_depth <= 0 or obj is None:
+        return None
+    if isinstance(obj, dict):
+        if key_name in obj and obj[key_name]:
+            return obj[key_name]
+        for k, v in obj.items():
+            if isinstance(v, (dict, list, object)):
+                res = find_key_in_obj(v, key_name, max_depth - 1)
+                if res:
+                    return res
+    elif isinstance(obj, list):
+        for item in obj:
+            res = find_key_in_obj(item, key_name, max_depth - 1)
+            if res:
+                return res
+    elif hasattr(obj, "__dict__"):
+        d = getattr(obj, "__dict__", {})
+        if isinstance(d, dict) and key_name in d and d[key_name]:
+            return d[key_name]
+        for k, v in d.items():
+            if not k.startswith("_"):
+                res = find_key_in_obj(v, key_name, max_depth - 1)
+                if res:
+                    return res
+    return None
+
 def before_agent_callback(context: Any) -> Any:
     """
     Hook executed before agent invocation.
-    If user_id is present in context, fetches user profile and populates
-    user_name and membership_tier into context state.
-    Does NOT overwrite state if user_id is absent.
+    Extracts user_id from context (including state, variables, events, and state_delta),
+    queries user profile (name, tier) from user_service/backend database, and populates
+    user_id, user_name, and membership_tier into context state.
     """
     # 1. Extract user_id dynamically from context
     user_id = None
@@ -23,10 +51,13 @@ def before_agent_callback(context: Any) -> Any:
     if not user_id and hasattr(context, "variables") and isinstance(context.variables, dict):
         user_id = context.variables.get("user_id")
 
+    if not user_id:
+        user_id = find_key_in_obj(context, "user_id")
+
     if isinstance(user_id, str):
         user_id = user_id.strip('"').strip("'").strip()
 
-    # 2. Only populate state if user_id is provided
+    # 2. Only populate state if user_id is provided and valid
     if not user_id or user_id.lower() == "guest":
         return None
 
