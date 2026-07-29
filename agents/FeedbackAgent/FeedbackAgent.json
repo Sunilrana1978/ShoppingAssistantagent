@@ -1,8 +1,14 @@
 {
   "name": "FeedbackAgent",
   "displayName": "FeedbackAgent",
-  "description": "Customer feedback collection agent.",
+  "description": "Specialized assistant for collecting customer feedback, store reviews, and star ratings.",
   "model": "gemini-3.5-flash",
+  "beforeAgentCallbacks": [
+    "before_agent_callback"
+  ],
+  "afterToolCallbacks": [
+    "after_tool_callback"
+  ],
   "tools": [
     "submit_feedback"
   ]

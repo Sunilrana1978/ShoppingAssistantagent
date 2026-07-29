@@ -1,6 +1,6 @@
 from typing import Dict, Any, List
 
-def after_model_callback(arg1: Any = None, arg2: Any = None, *args, **kwargs) -> Any:
+def after_model_callback(arg1: Any = None, arg2: Any = None) -> Any:
     """
     Hook executed after the model responds to format and attach structured JSON widget payloads.
     Supports both (callback_context, model_response) and (model_response, callback_context) signatures.
