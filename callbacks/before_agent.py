@@ -62,7 +62,7 @@ def before_agent_callback(context: Any) -> Any:
         "u_1029": {"name": "Alex", "membership_tier": "gold"},
         "u_1030": {"name": "Jordan", "membership_tier": "silver"},
         "u_1031": {"name": "Taylor", "membership_tier": "bronze"},
-        "guest": {"name": "Shopper", "membership_tier": "none"}
+        "guest": {"name": "Valued Customer", "membership_tier": "none"}
     }
 
     if user_id:
@@ -78,11 +78,6 @@ def before_agent_callback(context: Any) -> Any:
 
         state["user_name"] = info["name"]
         state["membership_tier"] = info["membership_tier"]
-    else:
-        if "user_name" not in state or not state["user_name"]:
-            state["user_name"] = "Shopper"
-        if "membership_tier" not in state or not state["membership_tier"]:
-            state["membership_tier"] = "none"
 
     if "session_id" not in state or not state["session_id"]:
         sess_id = getattr(context, "session_id", None) if hasattr(context, "session_id") else (context.get("session_id") if isinstance(context, dict) else None)
