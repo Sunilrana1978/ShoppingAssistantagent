@@ -29,8 +29,26 @@
       "name": "cart",
       "description": "Current cart state containing items, subtotal, discount_amount, and total.",
       "schema": {
-        "type": "STRING",
-        "default": "{\"items\": [], \"subtotal\": 0.0, \"discount_pct\": 0, \"discount_amount\": 0.0, \"total\": 0.0}"
+        "type": "OBJECT",
+        "properties": {
+          "items": {
+            "type": "ARRAY",
+            "items": {
+              "type": "OBJECT",
+              "properties": {
+                "sku": { "type": "STRING" },
+                "name": { "type": "STRING" },
+                "qty": { "type": "INTEGER" },
+                "size": { "type": "STRING" },
+                "unit_price": { "type": "NUMBER" }
+              }
+            }
+          },
+          "subtotal": { "type": "NUMBER" },
+          "discount_pct": { "type": "NUMBER" },
+          "discount_amount": { "type": "NUMBER" },
+          "total": { "type": "NUMBER" }
+        }
       }
     },
     {
@@ -73,8 +91,10 @@
       "name": "search_results",
       "description": "List of matching product objects from catalog search.",
       "schema": {
-        "type": "STRING",
-        "default": "[]"
+        "type": "ARRAY",
+        "items": {
+          "type": "OBJECT"
+        }
       }
     },
     {
@@ -102,8 +122,10 @@
       "name": "long_term_memories",
       "description": "Recalled long-term memory facts from Vertex AI Memory Bank for the current user.",
       "schema": {
-        "type": "STRING",
-        "default": "[]"
+        "type": "ARRAY",
+        "items": {
+          "type": "STRING"
+        }
       }
     }
   ],
