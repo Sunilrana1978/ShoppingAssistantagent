@@ -1,0 +1,53 @@
+{
+  "displayName": "tc_03_search_and_cart_arithmetic",
+  "description": "Verify catalog search and server-side cart pricing calculation",
+  "tags": [
+    "P0",
+    "ShoppingAssistant",
+    "Cart"
+  ],
+  "golden": {
+    "turns": [
+      {
+        "steps": [
+          {
+            "userInput": {
+              "text": "I need trail running shoes"
+            }
+          },
+          {
+            "expectation": {
+              "agentResponse": {
+                "chunks": [
+                  {
+                    "text": "Here is the TrailBlaze Pro Trail Runner for .99."
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "steps": [
+          {
+            "userInput": {
+              "text": "Add sku_1029 size 10 to cart"
+            }
+          },
+          {
+            "expectation": {
+              "agentResponse": {
+                "chunks": [
+                  {
+                    "text": "Added TrailBlaze Pro Trail Runner (size 10) to cart. Subtotal: .99, Gold Discount (15%): -.50, Total: .49."
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

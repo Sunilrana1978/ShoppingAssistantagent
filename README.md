@@ -11,8 +11,11 @@ The application features a **Multi-Agent Router Architecture** driven by natural
 - **Root Router Agent (`RootAgent`)**: Central supervisor that detects customer intent and routes between shopping discovery and customer feedback.
 - **Shopping Assistant (`ShoppingAssistant`)**: Greets members, surfaces membership-tier discounts, searches product catalogs based on natural-language queries, and manages session shopping carts.
 - **Customer Feedback Agent (`FeedbackAgent`)**: Collects 1 to 5 star ratings and customer feedback comments, logging them into analytics.
+- **App-level Guardrails**: Centrally manages security using Custom Prompt Guards (jailbreak/injection filters), deterministic Blocklists (PII, competitor brands, and profanity), and natural-language Rules across all agents.
+- **Logging & Observability**: Configured Cloud Logging with 1-year retention and automatic BigQuery analytics export to analyze conversation flows, intent statistics, and user interactions.
+- **Long-Term Memory Bank**: Leverages Vertex AI Memory Bank to persist user context, shopping preferences, and purchase intent across session boundaries, which are dynamically injected into current turns.
 - **Membership Discount Engine**: Automatically applies member discounts (**Gold: 15%**, **Silver: 10%**, **Bronze: 5%**, **Guest: 0%**) to product prices and cart totals.
-- **Server-Side Pricing Math**: Uses `after_tool_callback` Python hooks to calculate exact float arithmetic for cart subtotals, discount amounts, and grand totals server-side.
+- **Server-Side Pricing Math**: Calculates exact float arithmetic for cart subtotals, discount amounts, and grand totals server-side via callback functions.
 - **Rich Response Widgets**: Renders product recommendations and cart line items as structured, image-bearing Info Card UI widgets.
 - **Service Abstraction Layer**: Data access is isolated behind `IUserService`, `IDiscountService`, `ICatalogService`, `ICartService`, and `IFeedbackService` interfaces — currently backed by mock JSON files, ready to swap for real REST/OpenAPI backends.
 - **CI/CD & Environment Promotion**: Fully configured GitHub Actions workflows for continuous integration quality gates (`.github/workflows/ci.yml`) and multi-environment deployment (`.github/workflows/cd.yml`).
@@ -76,13 +79,20 @@ ShoppingAssistantAgent/
 ├── agents/
 │   ├── RootAgent/
 │   │   ├── RootAgent.json           # RootAgent manifest & sub-agent bindings
-│   │   └── instruction.txt          # Supervisor routing system prompt (<role>, <step>)
+│   │   ├── instruction.txt          # Supervisor routing system prompt (<role>, <step>)
+│   │   └── before_agent_callbacks/  # Hook: Seeding context for RootAgent (Memory Bank facts, etc.)
 │   ├── ShoppingAssistant/
 │   │   ├── ShoppingAssistant.json   # ShoppingAssistant manifest & tools
-│   │   └── instruction.txt          # Product discovery & cart prompt (<role>, <step>)
+│   │   ├── instruction.txt          # Product discovery & cart prompt (<role>, <step>)
+│   │   ├── before_agent_callbacks/  # Hook: Seeding context for ShoppingAssistant
+│   │   ├── before_tool_callbacks/   # Hook: Argument sanitization
+│   │   ├── after_tool_callbacks/    # Hook: Server-side cart arithmetic & feedback state
+│   │   └── after_model_callbacks/   # Hook: Rich Info Card payload formatting
 │   └── FeedbackAgent/
 │       ├── FeedbackAgent.json       # FeedbackAgent manifest & tools
-│       └── instruction.txt          # Feedback collection prompt (<role>, <step>)
+│       ├── instruction.txt          # Feedback collection prompt (<role>, <step>)
+│       ├── before_agent_callbacks/  # Hook: Seeding context for FeedbackAgent
+│       └── after_tool_callbacks/    # Hook: Verification after feedback submission
 ├── tools/
 │   ├── get_user_profile/
 │   │   ├── get_user_profile.json    # CXAS Tool Manifest (pythonFunction)
@@ -108,12 +118,6 @@ ShoppingAssistantAgent/
 │   │   └── python_function/python_code.py
 │   └── end_session/
 │       └── end_session.json        # CXAS Client Tool Manifest (clientFunction)
-├── callbacks/
-│   ├── __init__.py                  # Callback package exports
-│   ├── before_agent.py              # Hook: Context seeding from channel payload
-│   ├── after_tool.py                # Hook: Server-side cart arithmetic & feedback state
-│   ├── before_tool.py               # Hook: Argument sanitization
-│   └── after_model.py               # Hook: Rich Info Card payload formatting
 ├── services/
 │   ├── interfaces.py                # Abstract Base Classes for services
 │   ├── user_service.py              # User service implementation
@@ -126,16 +130,38 @@ ShoppingAssistantAgent/
 │   ├── membership_discounts.json    # Membership tier discount mapping
 │   ├── mock_catalog.json            # Mock product catalog with images
 │   └── mock_feedback.json           # Persistent feedback store
-├── evals/
-│   ├── test_cases.json              # Evaluation simulation test suite
-│   └── run_evals.py                 # cxas-scrapi simulation runner
+├── evaluations/                      # CXAS SCRAPI official evaluation definitions & runner
+│   ├── tc_01_gold_greeting/
+│   │   └── tc_01_gold_greeting.json # Golden evaluation definition
+│   ├── tc_06_guest_user_flow/
+│   │   └── tc_06_guest_user_flow.json # Scenario evaluation definition
+│   ├── tc_08_end_to_end_multi_agent_journey/
+│   │   └── tc_08_end_to_end_multi_agent_journey.json # Scenario evaluation definition
+│   └── run_evals.py                 # Local multi-agent simulation evaluation runner
 ├── tests/
 │   └── test_services.py             # Unit test suite (unittest)
 └── scripts/
     ├── build_app.py                 # cxas-scrapi multi-environment deployer (dev, staging, prod)
+    ├── push_all_evals.py            # Syncs all Golden & Scenario evals to CXAS
     ├── test_interactive_session.py  # Interactive multi-agent demo simulation
     └── validate_schemas.py          # Schema & manifest validation script
 ```
+
+---
+
+## 🛡️ Guardrails & Global Observability Settings
+
+All guardrail boundaries and analytics logging settings are defined globally at the application level in `app.json`.
+
+### 1. Guardrail Configurations
+- **Blocklist**: Deterministic redaction of competitor brand names (`Nike`, `Adidas`, etc.) from agent responses, and sensitive user inputs (Credit Card regex, SSN regex, and basic profanity).
+- **Custom Prompt Guard**: Screening model input against jailbreak / injection attempts to block off-topic prompt overrides.
+- **Natural Language Rules**: 7 LLM-evaluated behavioral policies ensuring transaction security, strict product alignment, and preventing incorrect discount applications or medical advice.
+
+### 2. Global Logging & Storage
+- **Cloud Logging**: Streams turn-by-turn trace entries to Google Cloud Logging (`enableCloudLogging: true`).
+- **BigQuery Export**: Automatically streams conversation histories to `shopping_assistant_logs` for analytics.
+- **Long-Term Memory Bank**: Vertex AI Memory Bank integrates with `before_agent_callback` to store and recall user preferences across separate conversations.
 
 ---
 
@@ -189,10 +215,22 @@ Executes unit tests for services, tools, and callback logic:
 uv run python -m unittest discover tests/
 ```
 
-### Run Automated Simulation Evaluations
-Executes multi-turn conversation simulations covering tier discount greetings, catalog searches, server-side cart arithmetic, and feedback submissions:
+### Run Scenario Evaluations & Multi-Turn Simulations
+Executes 9 automated evaluation test cases covering member tier greetings (Gold, Silver, Bronze, Guest), catalog searches, server-side cart pricing & item removals, feedback submissions, and end-to-end multi-agent journey flows:
 ```bash
-uv run python evals/run_evals.py
+uv run python evaluations/run_evals.py
+```
+
+
+### Push Evaluations to CXAS Studio
+Push individual evaluations or all Golden and Scenario evaluations to CX Agent Studio:
+```bash
+# Push an individual evaluation file via SCRAPI CLI
+uv run cxas push-eval --app_name projects/ecom-cx-agent/locations/us/apps/shopping-assistant-app-dev \
+    --file evaluations/tc_06_guest_user_flow/tc_06_guest_user_flow.json
+
+# Push all Golden & Scenario evaluations
+uv run python scripts/push_all_evals.py projects/ecom-cx-agent/locations/us/apps/shopping-assistant-app-dev
 ```
 
 ### Run Interactive Multi-Agent Demo

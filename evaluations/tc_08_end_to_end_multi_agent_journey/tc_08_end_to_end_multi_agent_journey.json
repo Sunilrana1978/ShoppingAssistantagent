@@ -1,0 +1,22 @@
+{
+  "displayName": "tc_08_end_to_end_multi_agent_journey",
+  "description": "Verify end-to-end multi-agent scenario covering user resolution, product search, cart operations, and feedback collection",
+  "tags": [
+    "P0",
+    "MultiAgent",
+    "Scenario"
+  ],
+  "scenario": {
+    "task": "Find tennis rackets (sku_1032), add one to your cart using your Gold member discount, and then submit 5-star feedback rating your shopping experience.",
+    "userFacts": [
+      {
+        "name": "persona",
+        "value": "You are Alex, a Gold tier member (user_id: u_1029)."
+      }
+    ],
+    "maxTurns": 10,
+    "variableOverrides": {
+      "user_id": "u_1029"
+    }
+  }
+}

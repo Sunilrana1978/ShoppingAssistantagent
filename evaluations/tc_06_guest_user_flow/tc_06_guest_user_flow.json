@@ -1,0 +1,23 @@
+{
+  "displayName": "tc_06_guest_user_flow",
+  "description": "Verify Guest user flow with 0% discount and standard cart pricing",
+  "tags": [
+    "P1",
+    "ShoppingAssistant",
+    "Guest",
+    "Scenario"
+  ],
+  "scenario": {
+    "task": "Browse the catalog for waterproof jackets (sku_1031), add one to your cart, and check out as a guest without any member discount.",
+    "userFacts": [
+      {
+        "name": "persona",
+        "value": "You are an unauthenticated guest customer."
+      }
+    ],
+    "maxTurns": 6,
+    "variableOverrides": {
+      "user_id": "guest"
+    }
+  }
+}

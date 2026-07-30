@@ -4,8 +4,17 @@
   "description": "Multi-agent conversational application with Root Router, Shopping Assistant, and Customer Feedback Agent.",
   "rootAgent": "RootAgent",
   "loggingSettings": {
+    "cloudLoggingSettings": {
+      "enableCloudLogging": true
+    },
     "conversationLoggingSettings": {
+      "disableConversationLogging": false,
       "retentionWindow": "31536000s"
+    },
+    "bigqueryExportSettings": {
+      "enabled": true,
+      "project": "ecom-cx-agent",
+      "dataset": "shopping_assistant_logs"
     }
   },
   "variableDeclarations": [
@@ -69,6 +78,13 @@
       }
     },
     {
+      "name": "session_id",
+      "description": "Unique session identifier.",
+      "schema": {
+        "type": "STRING"
+      }
+    },
+    {
       "name": "user_id",
       "description": "Unique user identifier from channel payload.",
       "schema": {
@@ -80,6 +96,14 @@
       "description": "User display name.",
       "schema": {
         "type": "STRING"
+      }
+    },
+    {
+      "name": "long_term_memories",
+      "description": "Recalled long-term memory facts from Vertex AI Memory Bank for the current user.",
+      "schema": {
+        "type": "STRING",
+        "default": "[]"
       }
     }
   ],
