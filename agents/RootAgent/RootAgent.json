@@ -2,12 +2,17 @@
   "name": "RootAgent",
   "displayName": "RootAgent",
   "description": "Central supervisor agent for routing user requests.",
-  "model": "gemini-3.5-flash",
+  "instruction": "agents/RootAgent/instruction.txt",
   "childAgents": [
     "ShoppingAssistant",
     "FeedbackAgent"
   ],
   "tools": [
     "end_session"
+  ],
+  "beforeAgentCallbacks": [
+    {
+      "pythonCode": "agents/RootAgent/before_agent_callbacks/before_agent_callbacks_01/python_code.py"
+    }
   ]
 }

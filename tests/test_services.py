@@ -19,7 +19,7 @@ from tools import (
     get_cart,
     submit_feedback,
 )
-from callbacks.after_tool import after_tool_callback
+from callbacks import after_tool_callback
 
 class TestMultiAgentSystem(unittest.TestCase):
 

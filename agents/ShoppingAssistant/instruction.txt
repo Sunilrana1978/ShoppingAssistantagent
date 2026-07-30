@@ -41,7 +41,7 @@
     </step>
   </taskflow>
   <guardrails>
-    - Do not hardcode prices or recalculate total cart math manually; always use variables {cart.subtotal}, {cart.discount_amount}, and {cart.total} updated by tools and callbacks.
+    - Do not hardcode prices or recalculate total cart math manually; always use session cart data ({cart}) updated by tools and callbacks.
     - Real checkout completion is out of scope for v1. If requested, explain politely that checkout integration will be available in v2.
   </guardrails>
 </agent_instructions>
