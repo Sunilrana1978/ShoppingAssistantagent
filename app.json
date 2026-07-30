@@ -2,5 +2,88 @@
   "name": "ShoppingAssistantApp",
   "displayName": "Sporting Goods Multi-Agent Shopping & Feedback App",
   "description": "Multi-agent conversational application with Root Router, Shopping Assistant, and Customer Feedback Agent.",
-  "rootAgent": "RootAgent"
+  "rootAgent": "RootAgent",
+  "loggingSettings": {
+    "conversationLoggingSettings": {
+      "retentionWindow": "31536000s"
+    }
+  },
+  "variableDeclarations": [
+    {
+      "name": "active_intent",
+      "description": "Active user intent detected by RootAgent.",
+      "schema": {
+        "type": "STRING"
+      }
+    },
+    {
+      "name": "cart",
+      "description": "Current cart state containing items, subtotal, discount_amount, and total.",
+      "schema": {
+        "type": "STRING",
+        "default": "{\"items\": [], \"subtotal\": 0.0, \"discount_pct\": 0, \"discount_amount\": 0.0, \"total\": 0.0}"
+      }
+    },
+    {
+      "name": "comments",
+      "description": "Customer feedback comments.",
+      "schema": {
+        "type": "STRING"
+      }
+    },
+    {
+      "name": "discount_pct",
+      "description": "Active discount percentage.",
+      "schema": {
+        "type": "NUMBER"
+      }
+    },
+    {
+      "name": "feedback_submitted",
+      "description": "Flag indicating feedback submission status.",
+      "schema": {
+        "type": "BOOLEAN",
+        "default": false
+      }
+    },
+    {
+      "name": "membership_tier",
+      "description": "User membership tier (none, bronze, silver, gold).",
+      "schema": {
+        "type": "STRING"
+      }
+    },
+    {
+      "name": "rating",
+      "description": "Star rating from 1 to 5.",
+      "schema": {
+        "type": "NUMBER"
+      }
+    },
+    {
+      "name": "search_results",
+      "description": "List of matching product objects from catalog search.",
+      "schema": {
+        "type": "STRING",
+        "default": "[]"
+      }
+    },
+    {
+      "name": "user_id",
+      "description": "Unique user identifier from channel payload.",
+      "schema": {
+        "type": "STRING"
+      }
+    },
+    {
+      "name": "user_name",
+      "description": "User display name.",
+      "schema": {
+        "type": "STRING"
+      }
+    }
+  ],
+  "timeZoneSettings": {
+    "timeZone": "America/Los_Angeles"
+  }
 }
