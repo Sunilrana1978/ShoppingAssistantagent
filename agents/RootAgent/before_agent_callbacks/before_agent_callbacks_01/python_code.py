@@ -6,6 +6,11 @@ try:
 except ImportError:
     user_service = None
 
+try:
+    from services.cart_service import cart_service
+except ImportError:
+    cart_service = None
+
 # ---------------------------------------------------------------------------
 # Long-Term Memory Bank integration (Vertex AI Memory Bank)
 # The Memory Bank SDK is conditionally imported so the callback degrades
@@ -54,13 +59,7 @@ def _retrieve_memories(user_id: str) -> list:
     Retrieve up to 5 long-term memory facts from Vertex AI Memory Bank
     for the given user_id.
 
-    Returns a list of memory fact strings, e.g.:
-      ["User prefers trail running shoes in size 10",
-       "User is a Gold tier member",
-       "User previously submitted 5-star feedback"]
-
-    Falls back gracefully to an empty list when Memory Bank SDK is
-    unavailable (e.g., local dev / CI environments).
+    Returns a list of memory fact strings.
     """
     if not _MEMORY_BANK_AVAILABLE:
         return []
@@ -85,8 +84,8 @@ def before_agent_callback(callback_context: Any) -> Optional[Any]:
     1. Reads user_id from session state or session parameter.
     2. Looks up user profile (name, membership_tier).
     3. Retrieves long-term memories from Vertex AI Memory Bank and
-       stores them in session state as `long_term_memories` (JSON array).
-    4. Populates user_name, membership_tier, and long_term_memories
+       restores cross-session cart state for the user.
+    4. Populates user_name, membership_tier, cart, and long_term_memories
        into session state for downstream agents.
     """
     try:
@@ -102,7 +101,7 @@ def before_agent_callback(callback_context: Any) -> Optional[Any]:
         if isinstance(user_id, str):
             user_id = user_id.strip('"').strip("'").strip()
 
-        if not user_id or user_id.lower() == "guest":
+        if not user_id or user_id.lower() in ("guest", "u_guest"):
             if not state.get("user_name"):
                 set_state_var(callback_context, "user_name", "Shopper")
             set_state_var(callback_context, "long_term_memories", "[]")
@@ -135,6 +134,27 @@ def before_agent_callback(callback_context: Any) -> Optional[Any]:
         # 3. Retrieve long-term memories from Vertex AI Memory Bank
         # ----------------------------------------------------------------
         memories = _retrieve_memories(user_id)
+
+        # ----------------------------------------------------------------
+        # 4. Cross-Session Cart Persistence & Memory Synthesis
+        # ----------------------------------------------------------------
+        session_id = state.get("session_id", "sess_default")
+        cart = state.get("cart")
+        
+        # If cart in current session is empty, attempt lookup by user_id
+        if not cart or not cart.get("items"):
+            if cart_service:
+                restored_cart = cart_service.get_cart(session_id, user_id=user_id)
+                if restored_cart and restored_cart.get("items"):
+                    cart = restored_cart
+                    set_state_var(callback_context, "cart", cart)
+
+        if cart and isinstance(cart, dict) and cart.get("items"):
+            item_summaries = [f"{i.get('name')} (size {i.get('size')}, qty {i.get('qty')})" for i in cart["items"]]
+            memory_fact = f"User has items in cart from previous chat: {', '.join(item_summaries)} with Total ${cart.get('total')}."
+            if memory_fact not in memories:
+                memories.append(memory_fact)
+
         set_state_var(callback_context, "long_term_memories", json.dumps(memories))
 
     except Exception:
