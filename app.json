@@ -8,9 +8,6 @@
       "retentionWindow": "31536000s"
     }
   },
-  "timeZoneSettings": {
-    "timeZone": "America/Los_Angeles"
-  },
   "variableDeclarations": [
     {
       "name": "active_intent",
@@ -85,5 +82,8 @@
         "type": "STRING"
       }
     }
-  ]
+  ],
+  "timeZoneSettings": {
+    "timeZone": "America/Los_Angeles"
+  }
 }
