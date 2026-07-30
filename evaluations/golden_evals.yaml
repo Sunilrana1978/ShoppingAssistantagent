@@ -1,4 +1,4 @@
-# Golden Evaluations for Sporting Goods Multi-Agent Application
+# Golden & Scenario Evaluations for Sporting Goods Multi-Agent Application
 common_session_parameters:
   user_id: "u_1029"
 
@@ -47,8 +47,72 @@ conversations:
               rating: 5
               comments: "amazing recommendation!"
 
+  - conversation: tc_05_silver_greeting
+    session_parameters:
+      user_id: "u_1030"
+    turns:
+      - user: "Hello"
+        agent: "Hello Jordan! Welcome to our store. As a Silver member, you get a 10% discount on your purchase today!"
+
+  - conversation: tc_06_guest_user_flow
+    session_parameters:
+      user_id: "guest"
+    turns:
+      - user: "Hello"
+        agent: "Welcome to our Sporting Goods Store! How can I assist you today?"
+      - user: "Add sku_1031 to my cart"
+        agent: "Added Performance Dri-Fit T-Shirt to your cart. Subtotal: $89.99, Discount: $0.00, Total: $89.99."
+        tool_calls:
+          - action: add_to_cart
+            args:
+              sku: "sku_1031"
+              quantity: 1
+
+  - conversation: tc_07_cart_item_addition_and_removal
+    session_parameters:
+      user_id: "u_1030"
+    turns:
+      - user: "Add sku_1030 and sku_1033 to cart"
+        agent: "Added both items to your cart. Subtotal: $179.98, Discount (10%): $18.00, Total: $161.98."
+        tool_calls:
+          - action: add_to_cart
+            args:
+              sku: "sku_1030"
+              quantity: 1
+      - user: "Remove sku_1033 from cart"
+        agent: "Removed sku_1033. Updated Subtotal: $149.99, Discount (10%): $15.00, Total: $134.99."
+        tool_calls:
+          - action: remove_from_cart
+            args:
+              sku: "sku_1033"
+
+  - conversation: tc_08_end_to_end_multi_agent_journey
+    session_parameters:
+      user_id: "u_1029"
+    turns:
+      - user: "Hi, I am looking for tennis rackets"
+        agent: "Hello Alex! As a Gold member, you get 15% off. Here are our top tennis rackets:"
+        tool_calls:
+          - action: search_catalog
+            args:
+              query: "tennis rackets"
+      - user: "Add sku_1032 to cart"
+        agent: "Added Pro Staff Tennis Racket to your cart. Subtotal: $199.99, Discount (15%): $30.00, Total: $169.99."
+        tool_calls:
+          - action: add_to_cart
+            args:
+              sku: "sku_1032"
+              quantity: 1
+      - user: "I'd like to leave a 5 star rating: Excellent racket recommendation and seamless cart experience!"
+        agent: "Thank you for the 5-star rating! Your feedback has been successfully submitted."
+        tool_calls:
+          - action: submit_feedback
+            args:
+              rating: 5
+              comments: "Excellent racket recommendation and seamless cart experience!"
+
     expectations:
       - "The agent must provide personalized greetings and tier discounts"
       - "The agent must compute server-side cart pricing and submit customer feedback"
 
-    tags: [P0, golden, multi-agent, shopping-assistant]
+    tags: [P0, golden, scenario, multi-agent, shopping-assistant]
