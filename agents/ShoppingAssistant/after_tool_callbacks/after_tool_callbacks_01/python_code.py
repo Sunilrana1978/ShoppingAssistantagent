@@ -5,6 +5,29 @@ try:
 except ImportError:
     cart_service = None
 
+try:
+    from google.cloud.aiplatform.memory import MemoryBankServiceClient  # type: ignore
+    _MEMORY_BANK_AVAILABLE = True
+except ImportError:
+    _MEMORY_BANK_AVAILABLE = False
+
+MEMORY_BANK_RESOURCE_NAME = "projects/ecom-cx-agent/locations/us-central1/memoryBanks/shopping-assistant-user-memory-bank"
+
+
+def _save_live_memory(user_id: str, fact_text: str) -> None:
+    """Save a long-term fact to live Vertex AI Memory Bank if available."""
+    if not _MEMORY_BANK_AVAILABLE or not user_id or user_id.lower() in ("guest", "u_guest"):
+        return
+    try:
+        client = MemoryBankServiceClient()
+        client.generate_and_save_memory(
+            parent=MEMORY_BANK_RESOURCE_NAME,
+            user_id=user_id,
+            text=fact_text,
+        )
+    except Exception:
+        pass
+
 
 def get_state(callback_context: Any) -> dict:
     """Helper to retrieve state dict following CXAS Scrapi Design Guide standards."""
@@ -58,6 +81,7 @@ def after_tool_callback(
 
     state = get_state(context_obj)
     session_id = state.get("session_id", "sess_default")
+    user_id = state.get("user_id", "")
     discount_pct = float(state.get("discount_pct", 0))
 
     if tool_name in ("add_to_cart", "remove_from_cart", "get_cart"):
@@ -72,6 +96,12 @@ def after_tool_callback(
             })
             set_state_var(context_obj, "cart", cart)
             tool_output["cart"] = cart
+
+            # Save live memory fact to Vertex AI Memory Bank
+            if user_id and tool_name == "add_to_cart" and cart.get("items"):
+                item_summaries = [f"{i.get('name')} (size {i.get('size')})" for i in cart["items"]]
+                fact = f"User added {', '.join(item_summaries)} to cart for ${cart.get('total')}."
+                _save_live_memory(user_id, fact)
 
     elif tool_name == "get_discount":
         if "discount_pct" in tool_output:
@@ -104,5 +134,7 @@ def after_tool_callback(
         if tool_output.get("status") == "success":
             set_state_var(context_obj, "feedback_submitted", True)
             set_state_var(context_obj, "last_feedback_id", tool_output.get("feedback_id"))
+            if user_id:
+                _save_live_memory(user_id, f"User submitted rating {tool_output.get('rating')} star feedback.")
 
     return tool_output
