@@ -161,7 +161,13 @@ All guardrail boundaries and analytics logging settings are defined globally at 
 ### 2. Global Logging & Storage
 - **Cloud Logging**: Streams turn-by-turn trace entries to Google Cloud Logging (`enableCloudLogging: true`).
 - **BigQuery Export**: Automatically streams conversation histories to `shopping_assistant_logs` for analytics.
-- **Long-Term Memory Bank**: Vertex AI Memory Bank integrates with `before_agent_callback` to store and recall user preferences across separate conversations.
+- **Long-Term Memory Bank**: Integrates `MemoryBankServiceClient` (`google.cloud.aiplatform.memory`) in `before_agent_callback` and `after_tool_callback` to extract, store, and semantically recall user-level facts (e.g. past purchases, cart items, and membership discount tiers) across separate conversational sessions.
+
+### 3. Cross-Session User Memory & Cart Recall
+When a customer interacts with the assistant across separate chat sessions:
+- **Session 1 (First Interaction)**: The user resolves their identity (`u_1029` / `Alex`), searches the catalog, and adds an item to their cart. `after_tool_callback` persists the memory fact to Vertex AI Memory Bank (`shopping-assistant-user-memory-bank`).
+- **Session 2 (Subsequent Interaction)**: When a new session opens for `u_1029`, `before_agent_callback` queries Vertex AI Memory Bank (`retrieve_memories`), restores the user's stored cart state, and populates `{long_term_memories}`.
+- **Natural Language Recall**: When asked *"What did I put in my cart in my previous chat?"*, the assistant inspects `{long_term_memories}` and `{cart}` to summarize the item name, size, quantity, and total discounted price saved from the previous session.
 
 ---
 
