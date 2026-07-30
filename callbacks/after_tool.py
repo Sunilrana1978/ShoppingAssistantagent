@@ -70,34 +70,17 @@ def after_tool_callback(
     # Cart mutation tools: recalculate totals server-side
     # ------------------------------------------------------------------
     if tool_name in ("add_to_cart", "remove_from_cart", "get_cart"):
-        if cart_service:
-            if tool_name == "add_to_cart" and "product_id" in tool_output:
-                cart_service.add_to_cart(
-                    session_id,
-                    tool_output.get("product_id"),
-                    tool_output.get("quantity", 1),
-                )
-            elif tool_name == "remove_from_cart" and "product_id" in tool_output:
-                cart_service.remove_from_cart(
-                    session_id,
-                    tool_output.get("product_id"),
-                )
-
-            updated_cart = cart_service.update_cart_pricing(session_id, discount_pct)
-            set_var("cart", updated_cart)
-            tool_output["cart"] = updated_cart
-        else:
-            if session_vars.get("cart"):
-                cart = dict(session_vars["cart"])
-                subtotal = float(cart.get("subtotal", 0.0))
-                disc_amt = round(subtotal * (discount_pct / 100.0), 2)
-                cart.update({
-                    "discount_pct": discount_pct,
-                    "discount_amount": disc_amt,
-                    "total": round(subtotal - disc_amt, 2),
-                })
-                set_var("cart", cart)
-                tool_output["cart"] = cart
+        cart = tool_output.get("cart") or session_vars.get("cart")
+        if cart and isinstance(cart, dict):
+            subtotal = float(cart.get("subtotal", 0.0))
+            disc_amt = round(subtotal * (discount_pct / 100.0), 2)
+            cart.update({
+                "discount_pct": discount_pct,
+                "discount_amount": disc_amt,
+                "total": round(subtotal - disc_amt, 2),
+            })
+            set_var("cart", cart)
+            tool_output["cart"] = cart
 
     # ------------------------------------------------------------------
     # get_discount: update discount_pct and recalculate cart
