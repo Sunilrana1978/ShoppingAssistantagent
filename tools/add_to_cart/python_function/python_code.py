@@ -18,12 +18,13 @@ def add_to_cart(session_id: str, sku: str, qty: int = 1, size: str = "") -> Dict
         
         cart = SESSION_CARTS[session_id]
         
-        # Prices lookup
+        # Comprehensive Product Prices lookup matching data/mock_catalog.json
         item_prices = {
-            "sku_1029": {"name": "AeroSwift Trail Running Shoes", "price": 129.99},
-            "sku_2041": {"name": "ProFlex Basketball Shoes", "price": 149.99},
-            "sku_3012": {"name": "DryFit Performance Training Shirt", "price": 39.99},
-            "sku_4055": {"name": "Carbon Strike Tennis Racket", "price": 199.99}
+            "sku_1029": {"name": "TrailBlaze Pro Trail Runner", "price": 129.99},
+            "sku_1030": {"name": "Apex Aero Road Running Shoes", "price": 149.99},
+            "sku_1031": {"name": "StormFlex Waterproof Trail Jacket", "price": 89.99},
+            "sku_1032": {"name": "ProCourt Precision Tennis Racket", "price": 199.99},
+            "sku_1033": {"name": "UltraGrip Gym Gloves", "price": 29.99}
         }
         
         info = item_prices.get(sku, {"name": f"Product ({sku})", "price": 99.99})
@@ -33,6 +34,8 @@ def add_to_cart(session_id: str, sku: str, qty: int = 1, size: str = "") -> Dict
         existing = next((i for i in cart["items"] if i["sku"] == sku), None)
         if existing:
             existing["qty"] += qty
+            if size:
+                existing["size"] = size
         else:
             cart["items"].append({
                 "sku": sku,
