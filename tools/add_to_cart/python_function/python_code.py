@@ -2,9 +2,15 @@ from typing import Dict, Any
 
 SESSION_CARTS = {}
 
-def add_to_cart(session_id: str, sku: str, qty: int = 1, size: str = "") -> Dict[str, Any]:
+def add_to_cart(
+    session_id: str,
+    sku: str,
+    qty: int = 1,
+    size: str = "",
+    discount_pct: float = 0.0
+) -> Dict[str, Any]:
     """
-    Add item to session cart.
+    Add item SKU and quantity to active session shopping cart and compute discounted total.
     """
     try:
         if session_id not in SESSION_CARTS:
@@ -12,11 +18,16 @@ def add_to_cart(session_id: str, sku: str, qty: int = 1, size: str = "") -> Dict
                 "session_id": session_id,
                 "items": [],
                 "subtotal": 0.0,
+                "discount_pct": float(discount_pct or 0.0),
                 "discount_amount": 0.0,
                 "total": 0.0
             }
         
         cart = SESSION_CARTS[session_id]
+        
+        # Update discount_pct if passed explicitly
+        if discount_pct > 0:
+            cart["discount_pct"] = float(discount_pct)
         
         # Comprehensive Product Prices lookup matching data/mock_catalog.json
         item_prices = {
@@ -45,9 +56,16 @@ def add_to_cart(session_id: str, sku: str, qty: int = 1, size: str = "") -> Dict
                 "size": size or "Default"
             })
             
-        # Recalculate subtotal
-        cart["subtotal"] = round(sum(i["unit_price"] * i["qty"] for i in cart["items"]), 2)
-        cart["total"] = cart["subtotal"]
+        # Compute subtotal, discount_amount, and total
+        subtotal = round(sum(i["unit_price"] * i["qty"] for i in cart["items"]), 2)
+        disc_pct = float(cart.get("discount_pct", discount_pct or 0.0))
+        disc_amt = round(subtotal * (disc_pct / 100.0), 2)
+        total = round(subtotal - disc_amt, 2)
+        
+        cart["subtotal"] = subtotal
+        cart["discount_pct"] = disc_pct
+        cart["discount_amount"] = disc_amt
+        cart["total"] = total
         
         return {
             "status": "success",

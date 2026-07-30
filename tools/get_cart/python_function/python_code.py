@@ -11,6 +11,7 @@ def get_cart(session_id: str) -> Dict[str, Any]:
             "session_id": session_id,
             "items": [],
             "subtotal": 0.0,
+            "discount_pct": 0.0,
             "discount_amount": 0.0,
             "total": 0.0
         })
