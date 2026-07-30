@@ -24,13 +24,17 @@ class MockUserService(IUserService):
                 "user_id": user_id,
                 "name": "Shopper",
                 "user_name": "Shopper",
-                "membership_tier": "none"
+                "membership_tier": "none",
+                "memories": [],
+                "previous_cart": {}
             }
         return {
             "user_id": user_id,
             "name": user.get("name", "Shopper"),
             "user_name": user.get("name", "Shopper"),
-            "membership_tier": user.get("membership_tier", "none")
+            "membership_tier": user.get("membership_tier", "none"),
+            "memories": user.get("memories", []),
+            "previous_cart": user.get("previous_cart", {})
         }
 
 user_service = MockUserService()
