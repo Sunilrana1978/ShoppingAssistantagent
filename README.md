@@ -109,6 +109,7 @@ ShoppingAssistantAgent/
 │   └── end_session/
 │       └── end_session.json        # CXAS Client Tool Manifest (clientFunction)
 ├── callbacks/
+│   ├── __init__.py                  # Callback package exports
 │   ├── before_agent.py              # Hook: Context seeding from channel payload
 │   ├── after_tool.py                # Hook: Server-side cart arithmetic & feedback state
 │   ├── before_tool.py               # Hook: Argument sanitization
@@ -131,10 +132,9 @@ ShoppingAssistantAgent/
 ├── tests/
 │   └── test_services.py             # Unit test suite (unittest)
 └── scripts/
-    ├── validate_schemas.py          # Schema & manifest validation script
-    ├── build_app.py                 # cxas-scrapi multi-environment deployer
-    ├── deploy_to_gcp_live.py        # Programmatic agent initialization script
-    └── test_interactive_session.py  # Interactive multi-agent demo simulation
+    ├── build_app.py                 # cxas-scrapi multi-environment deployer (dev, staging, prod)
+    ├── test_interactive_session.py  # Interactive multi-agent demo simulation
+    └── validate_schemas.py          # Schema & manifest validation script
 ```
 
 ---
@@ -258,14 +258,11 @@ gh secret set GCP_WIF_PROVIDER --body "projects/${PROJECT_NUM}/locations/global/
 gcloud auth application-default login
 gcloud config set project ecom-cx-agent
 
-# 2. (Optional) Initialize the live Agent in your GCP console
-uv run python scripts/deploy_to_gcp_live.py
-
-# 3. Deploy to DEV environment
+# 2. Deploy to DEV environment
 uv run python scripts/build_app.py --env dev
 # or: uv run cxas push --to projects/ecom-cx-agent/locations/us/apps/shopping-assistant-app-dev
 
-# 4. Deploy to STAGING environment
+# 3. Deploy to STAGING environment
 uv run python scripts/build_app.py --env staging
 # or: uv run cxas push --to projects/ecom-cx-agent/locations/us/apps/shopping-assistant-app-staging
 
