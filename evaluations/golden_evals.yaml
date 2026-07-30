@@ -1,0 +1,54 @@
+# Golden Evaluations for Sporting Goods Multi-Agent Application
+common_session_parameters:
+  user_id: "u_1029"
+
+conversations:
+  - conversation: tc_01_gold_greeting
+    session_parameters:
+      user_id: "u_1029"
+    turns:
+      - user: "Hello"
+        agent: "Hello Alex! Welcome back to our Sporting Goods Store. As a Gold member, you receive a 15% discount on all purchases today!"
+
+  - conversation: tc_02_bronze_greeting
+    session_parameters:
+      user_id: "u_1031"
+    turns:
+      - user: "Hi there"
+        agent: "Hi Taylor! Welcome to our store. As a Bronze member, you get a 5% discount on your order!"
+
+  - conversation: tc_03_search_and_cart_arithmetic
+    session_parameters:
+      user_id: "u_1029"
+    turns:
+      - user: "I need trail running shoes"
+        agent: "Here are the top trail running shoes available in our store:"
+        tool_calls:
+          - action: search_catalog
+            args:
+              query: "trail running shoes"
+      - user: "Add sku_1029 size 10 to cart"
+        agent: "Added Apex Trail Runner (Size 10) to your cart. Your subtotal is $129.99, discount (15%) is $19.50, and total is $110.49."
+        tool_calls:
+          - action: add_to_cart
+            args:
+              sku: "sku_1029"
+              quantity: 1
+
+  - conversation: tc_04_feedback_submission
+    session_parameters:
+      user_id: "u_1029"
+    turns:
+      - user: "I want to leave feedback: 5 stars, amazing recommendation!"
+        agent: "Thank you for your 5-star review! Your feedback has been recorded."
+        tool_calls:
+          - action: submit_feedback
+            args:
+              rating: 5
+              comments: "amazing recommendation!"
+
+    expectations:
+      - "The agent must provide personalized greetings and tier discounts"
+      - "The agent must compute server-side cart pricing and submit customer feedback"
+
+    tags: [P0, golden, multi-agent, shopping-assistant]
