@@ -11,12 +11,14 @@ from services.discount_service import discount_service
 from services.catalog_service import catalog_service
 from services.cart_service import cart_service
 from services.feedback_service import feedback_service
-from tools.get_user_profile import get_user_profile
-from tools.get_discount import get_discount
-from tools.search_catalog import search_catalog
-from tools.add_to_cart import add_to_cart
-from tools.get_cart import get_cart
-from tools.submit_feedback import submit_feedback
+from tools import (
+    get_user_profile,
+    get_discount,
+    search_catalog,
+    add_to_cart,
+    get_cart,
+    submit_feedback,
+)
 from callbacks.after_tool import after_tool_callback
 
 class TestMultiAgentSystem(unittest.TestCase):

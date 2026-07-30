@@ -1,10 +1,10 @@
-from tools.get_user_profile import get_user_profile
-from tools.get_discount import get_discount
-from tools.search_catalog import search_catalog
-from tools.add_to_cart import add_to_cart
-from tools.get_cart import get_cart
-from tools.remove_from_cart import remove_from_cart
-from tools.submit_feedback import submit_feedback
+from tools.get_user_profile.python_function.python_code import get_user_profile
+from tools.get_discount.python_function.python_code import get_discount
+from tools.search_catalog.python_function.python_code import search_catalog
+from tools.add_to_cart.python_function.python_code import add_to_cart
+from tools.get_cart.python_function.python_code import get_cart
+from tools.remove_from_cart.python_function.python_code import remove_from_cart
+from tools.submit_feedback.python_function.python_code import submit_feedback
 
 __all__ = [
     "get_user_profile",
@@ -13,5 +13,5 @@ __all__ = [
     "add_to_cart",
     "get_cart",
     "remove_from_cart",
-    "submit_feedback"
+    "submit_feedback",
 ]

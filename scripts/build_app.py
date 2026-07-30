@@ -133,13 +133,9 @@ def sync_tools_and_agents(target_app_path: str):
     for tool_id, desc in tools_def:
         if tool_id == 'end_session':
             continue
-        # Canonical Scrapi path (preferred)
-        canonical = root / 'tools' / tool_id / 'python_function' / 'python_code.py'
-        # Legacy flat-file fallback
-        flat = root / 'tools' / f'{tool_id}.py'
-        tool_file = canonical if canonical.exists() else flat
+        tool_file = root / 'tools' / tool_id / 'python_function' / 'python_code.py'
         if not tool_file.exists():
-            print(f"   ⚠️  Tool '{tool_id}' source not found — skipping.")
+            print(f"   ⚠️  Tool '{tool_id}' source not found at {tool_file} — skipping.")
             continue
         code = tool_file.read_text(encoding='utf-8')
         payload = {
