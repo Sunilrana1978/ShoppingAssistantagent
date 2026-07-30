@@ -33,4 +33,4 @@ jobs:
 
       - name: Run Simulation Evals
         run: |
-          python evals/run_evals.py
+          python evaluations/run_evals.py
