@@ -1,21 +1,33 @@
 from typing import Any, Optional, Dict, List
 
-CallbackContext = Any
-LlmResponse = Any
+
+def get_state(callback_context: Any) -> dict:
+    """Helper to retrieve state dict following CXAS Scrapi Design Guide standards."""
+    if hasattr(callback_context, "state") and isinstance(getattr(callback_context, "state"), dict):
+        return callback_context.state
+    if hasattr(callback_context, "variables") and isinstance(getattr(callback_context, "variables"), dict):
+        return callback_context.variables
+    if isinstance(callback_context, dict):
+        if "state" in callback_context and isinstance(callback_context["state"], dict):
+            return callback_context["state"]
+        if "variables" in callback_context and isinstance(callback_context["variables"], dict):
+            return callback_context["variables"]
+        return callback_context
+    return {}
 
 
 def after_model_callback(
-    callback_context: CallbackContext,
-    llm_response: LlmResponse,
-) -> Optional[LlmResponse]:
+    callback_context: Any,
+    llm_response: Any,
+) -> Optional[Any]:
     """
     Executes after the LLM responds to attach rich UI widget payloads
     (product cards, etc.) to the model response.
     """
     try:
-        session_vars = callback_context.variables
-        discount_pct = float(session_vars.get("discount_pct", 0))
-        search_results = session_vars.get("search_results", [])
+        state = get_state(callback_context)
+        discount_pct = float(state.get("discount_pct", 0))
+        search_results = state.get("search_results", [])
 
         if not search_results:
             return None
@@ -27,7 +39,7 @@ def after_model_callback(
             disc_price = round(orig_price * (1.0 - discount_pct / 100.0), 2)
             subtitle = f"${orig_price:.2f} → ${disc_price:.2f}"
             if discount_pct > 0:
-                tier = str(session_vars.get("membership_tier", "")).capitalize()
+                tier = str(state.get("membership_tier", "")).capitalize()
                 subtitle += f" ({tier} {discount_pct:.0f}% off)"
 
             custom_payloads.append({
