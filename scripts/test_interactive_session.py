@@ -11,11 +11,9 @@ from services.discount_service import discount_service
 from services.catalog_service import catalog_service
 from services.cart_service import cart_service
 from services.feedback_service import feedback_service
-from callbacks import (
-    before_agent_callback,
-    after_tool_callback,
-    after_model_callback,
-)
+from agents.RootAgent.before_agent_callbacks.before_agent_callbacks_01.python_code import before_agent_callback
+from agents.ShoppingAssistant.after_tool_callbacks.after_tool_callbacks_01.python_code import after_tool_callback
+from agents.ShoppingAssistant.after_model_callbacks.after_model_callbacks_01.python_code import after_model_callback
 from tools import search_catalog, add_to_cart, get_cart, submit_feedback
 
 class MockCallbackContext:
