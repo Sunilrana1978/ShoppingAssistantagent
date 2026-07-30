@@ -1,0 +1,6 @@
+{
+  "name": "rating",
+  "displayName": "Feedback Rating",
+  "description": "Star rating from 1 to 5.",
+  "dataType": "NUMBER"
+}

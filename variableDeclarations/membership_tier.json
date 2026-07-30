@@ -1,0 +1,6 @@
+{
+  "name": "membership_tier",
+  "displayName": "Membership Tier",
+  "description": "User membership tier (none, bronze, silver, gold).",
+  "dataType": "STRING"
+}

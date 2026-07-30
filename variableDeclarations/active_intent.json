@@ -1,0 +1,6 @@
+{
+  "name": "active_intent",
+  "displayName": "Active Intent",
+  "description": "Active user intent detected by RootAgent.",
+  "dataType": "STRING"
+}
