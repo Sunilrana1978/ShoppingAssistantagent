@@ -15,10 +15,14 @@ except ImportError:
 # Long-Term Memory Bank integration (Vertex AI Memory Bank)
 # ---------------------------------------------------------------------------
 try:
-    from google.cloud.aiplatform.memory import MemoryBankServiceClient  # type: ignore
+    from google.cloud.aiplatform_v1beta1 import MemoryBankServiceClient  # type: ignore
     _MEMORY_BANK_AVAILABLE = True
 except ImportError:
-    _MEMORY_BANK_AVAILABLE = False
+    try:
+        from google.cloud.aiplatform.memory import MemoryBankServiceClient  # type: ignore
+        _MEMORY_BANK_AVAILABLE = True
+    except ImportError:
+        _MEMORY_BANK_AVAILABLE = False
 
 
 def get_state(callback_context: Any) -> dict:
@@ -52,22 +56,35 @@ def set_state_var(callback_context: Any, key: str, value: Any) -> None:
         callback_context[key] = value
 
 
-def _retrieve_memories(user_id: str) -> list:
+import os
+
+def _retrieve_memories(user_id: str, project_id: str = "ecom-cx-agent", location: str = "us-central1") -> list:
     """
     Retrieve up to 5 long-term memory facts from Vertex AI Memory Bank
     for the given user_id.
     """
-    if not _MEMORY_BANK_AVAILABLE:
+    if not _MEMORY_BANK_AVAILABLE or not user_id:
         return []
 
     try:
-        client = MemoryBankServiceClient()
+        endpoint = f"{location}-aiplatform.googleapis.com"
+        client = MemoryBankServiceClient(client_options={"api_endpoint": endpoint})
+        engine_id = os.getenv("REASONING_ENGINE_ID", "432575911913586688")
+        parent = f"projects/{project_id}/locations/{location}/reasoningEngines/{engine_id}"
         response = client.retrieve_memories(
+            parent=parent,
             user_id=user_id,
             max_results=5,
         )
-        return [m.fact for m in response.memories if hasattr(m, "fact")]
+        memories = []
+        if hasattr(response, "memories") and response.memories:
+            for m in response.memories:
+                fact = getattr(m, "fact", None) or getattr(m, "text", None) or str(m)
+                if fact:
+                    memories.append(fact)
+        return memories
     except Exception:
+        # Fall back gracefully to local profile memories if GCP Memory Bank is unconfigured
         return []
 
 

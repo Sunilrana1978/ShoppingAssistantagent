@@ -6,25 +6,46 @@ except ImportError:
     cart_service = None
 
 try:
-    from google.cloud.aiplatform.memory import MemoryBankServiceClient  # type: ignore
+    from google.cloud.aiplatform_v1beta1 import MemoryBankServiceClient  # type: ignore
     _MEMORY_BANK_AVAILABLE = True
 except ImportError:
-    _MEMORY_BANK_AVAILABLE = False
+    try:
+        from google.cloud.aiplatform.memory import MemoryBankServiceClient  # type: ignore
+        _MEMORY_BANK_AVAILABLE = True
+    except ImportError:
+        _MEMORY_BANK_AVAILABLE = False
 
-MEMORY_BANK_RESOURCE_NAME = "projects/ecom-cx-agent/locations/us-central1/memoryBanks/shopping-assistant-user-memory-bank"
+import os
+
+DEFAULT_REASONING_ENGINE_ID = "432575911913586688"
 
 
-def _save_live_memory(user_id: str, fact_text: str) -> None:
+def _save_live_memory(user_id: str, fact_text: str, project_id: str = "ecom-cx-agent", location: str = "us-central1") -> None:
     """Save a long-term fact to live Vertex AI Memory Bank if available."""
     if not _MEMORY_BANK_AVAILABLE or not user_id or user_id.lower() in ("guest", "u_guest"):
         return
     try:
-        client = MemoryBankServiceClient()
-        client.generate_and_save_memory(
-            parent=MEMORY_BANK_RESOURCE_NAME,
-            user_id=user_id,
-            text=fact_text,
-        )
+        endpoint = f"{location}-aiplatform.googleapis.com"
+        client = MemoryBankServiceClient(client_options={"api_endpoint": endpoint})
+        engine_id = os.getenv("REASONING_ENGINE_ID", DEFAULT_REASONING_ENGINE_ID)
+        parent = f"projects/{project_id}/locations/{location}/reasoningEngines/{engine_id}"
+        if hasattr(client, "generate_memories"):
+            client.generate_memories(
+                parent=parent,
+                user_id=user_id,
+                text_payload=fact_text,
+            )
+        elif hasattr(client, "generate_and_save_memory"):
+            client.generate_and_save_memory(
+                parent=parent,
+                user_id=user_id,
+                text=fact_text,
+            )
+        elif hasattr(client, "create_memory"):
+            client.create_memory(
+                parent=parent,
+                memory={"user_id": user_id, "fact": fact_text},
+            )
     except Exception:
         pass
 
