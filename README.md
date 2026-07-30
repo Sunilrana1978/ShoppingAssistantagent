@@ -130,13 +130,19 @@ ShoppingAssistantAgent/
 │   ├── membership_discounts.json    # Membership tier discount mapping
 │   ├── mock_catalog.json            # Mock product catalog with images
 │   └── mock_feedback.json           # Persistent feedback store
-├── evals/
-│   ├── test_cases.json              # Evaluation simulation test suite
-│   └── run_evals.py                 # cxas-scrapi simulation runner
+├── evaluations/                      # CXAS SCRAPI official evaluation definitions & runner
+│   ├── tc_01_gold_greeting/
+│   │   └── tc_01_gold_greeting.json # Golden evaluation definition
+│   ├── tc_06_guest_user_flow/
+│   │   └── tc_06_guest_user_flow.json # Scenario evaluation definition
+│   ├── tc_08_end_to_end_multi_agent_journey/
+│   │   └── tc_08_end_to_end_multi_agent_journey.json # Scenario evaluation definition
+│   └── run_evals.py                 # Local multi-agent simulation evaluation runner
 ├── tests/
 │   └── test_services.py             # Unit test suite (unittest)
 └── scripts/
     ├── build_app.py                 # cxas-scrapi multi-environment deployer (dev, staging, prod)
+    ├── push_all_evals.py            # Syncs all Golden & Scenario evals to CXAS
     ├── test_interactive_session.py  # Interactive multi-agent demo simulation
     └── validate_schemas.py          # Schema & manifest validation script
 ```
@@ -210,11 +216,22 @@ uv run python -m unittest discover tests/
 ```
 
 ### Run Scenario Evaluations & Multi-Turn Simulations
-Executes 8 automated scenario evaluation test cases covering member tier greetings (Gold, Silver, Bronze, Guest), catalog searches, server-side cart pricing & item removals, feedback submissions, and end-to-end multi-agent journey flows:
+Executes 9 automated evaluation test cases covering member tier greetings (Gold, Silver, Bronze, Guest), catalog searches, server-side cart pricing & item removals, feedback submissions, and end-to-end multi-agent journey flows:
 ```bash
-uv run python evals/run_evals.py
+uv run python evaluations/run_evals.py
 ```
 
+
+### Push Evaluations to CXAS Studio
+Push individual evaluations or all Golden and Scenario evaluations to CX Agent Studio:
+```bash
+# Push an individual evaluation file via SCRAPI CLI
+uv run cxas push-eval --app_name projects/ecom-cx-agent/locations/us/apps/shopping-assistant-app-dev \
+    --file evaluations/tc_06_guest_user_flow/tc_06_guest_user_flow.json
+
+# Push all Golden & Scenario evaluations
+uv run python scripts/push_all_evals.py projects/ecom-cx-agent/locations/us/apps/shopping-assistant-app-dev
+```
 
 ### Run Interactive Multi-Agent Demo
 Simulates an interactive customer turn-by-turn conversation:
