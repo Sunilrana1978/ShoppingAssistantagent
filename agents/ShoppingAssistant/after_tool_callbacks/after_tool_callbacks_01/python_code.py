@@ -25,10 +25,6 @@ def after_tool_callback(
     """
     Executes after a tool call finishes to update session variables
     and recompute cart pricing.
-
-    Supports both:
-    1. CXAS runtime 4-arg signature: (tool, input, callback_context, tool_response)
-    2. Simulation 3-arg signature: (tool_name, tool_response, callback_context)
     """
     if tool_response is None and callback_context is not None:
         tool_name = str(tool)
@@ -66,9 +62,6 @@ def after_tool_callback(
     session_id = session_vars.get("session_id", "sess_default")
     discount_pct = float(session_vars.get("discount_pct", 0))
 
-    # ------------------------------------------------------------------
-    # Cart mutation tools: recalculate totals server-side
-    # ------------------------------------------------------------------
     if tool_name in ("add_to_cart", "remove_from_cart", "get_cart"):
         cart = tool_output.get("cart") or session_vars.get("cart")
         if cart and isinstance(cart, dict):
@@ -82,9 +75,6 @@ def after_tool_callback(
             set_var("cart", cart)
             tool_output["cart"] = cart
 
-    # ------------------------------------------------------------------
-    # get_discount: update discount_pct and recalculate cart
-    # ------------------------------------------------------------------
     elif tool_name == "get_discount":
         if "discount_pct" in tool_output:
             new_pct = tool_output["discount_pct"]
@@ -103,24 +93,15 @@ def after_tool_callback(
                 })
                 set_var("cart", cart)
 
-    # ------------------------------------------------------------------
-    # get_user_profile: persist user_name and membership_tier
-    # ------------------------------------------------------------------
     elif tool_name == "get_user_profile":
         name = tool_output.get("user_name") or tool_output.get("name") or "Shopper"
         set_var("user_name", name)
         set_var("membership_tier", tool_output.get("membership_tier", "none"))
 
-    # ------------------------------------------------------------------
-    # search_catalog: cache results for after_model rich cards
-    # ------------------------------------------------------------------
     elif tool_name == "search_catalog":
         if "products" in tool_output:
             set_var("search_results", tool_output["products"])
 
-    # ------------------------------------------------------------------
-    # submit_feedback: mark submission complete
-    # ------------------------------------------------------------------
     elif tool_name == "submit_feedback":
         if tool_output.get("status") == "success":
             set_var("feedback_submitted", True)

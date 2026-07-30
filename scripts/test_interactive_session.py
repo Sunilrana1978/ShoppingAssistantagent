@@ -11,9 +11,11 @@ from services.discount_service import discount_service
 from services.catalog_service import catalog_service
 from services.cart_service import cart_service
 from services.feedback_service import feedback_service
-from callbacks.before_agent import before_agent_callback
-from callbacks.after_tool import after_tool_callback
-from callbacks.after_model import after_model_callback
+from callbacks import (
+    before_agent_callback,
+    after_tool_callback,
+    after_model_callback,
+)
 from tools import search_catalog, add_to_cart, get_cart, submit_feedback
 
 class MockCallbackContext:

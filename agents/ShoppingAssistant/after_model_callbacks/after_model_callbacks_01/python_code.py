@@ -18,14 +18,6 @@ def after_model_callback(
     """
     Executes after the LLM responds to attach rich UI widget payloads
     (product cards, etc.) to the model response.
-
-    ADK signature:
-        callback_context — CallbackContext; use callback_context.variables for session vars
-        llm_response     — the LlmResponse object returned by the model
-
-    Returns:
-        None            → the original llm_response is used as-is.
-        LlmResponse     → this response replaces the model's output.
     """
     try:
         session_vars = callback_context.variables
@@ -68,14 +60,12 @@ def after_model_callback(
         if not custom_payloads:
             return None
 
-        # Attach rich widget payloads to the model response
         if hasattr(llm_response, "custom_payload"):
             llm_response.custom_payload = custom_payloads
         elif isinstance(llm_response, dict):
             llm_response["rich_widgets"] = custom_payloads
 
     except Exception:
-        # Never block the response — return None to use llm_response as-is
         pass
 
     return None
