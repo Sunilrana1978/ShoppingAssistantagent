@@ -146,10 +146,10 @@ In **Gemini Enterprise for Customer Experience (CX Agent Studio / CES API)**, Py
 - **Self-Contained Tool Requirement**: Tool source files (`tools/<tool_name>/python_function/python_code.py`) MUST be self-contained and use standard Python libraries (`typing`, `json`, `datetime`, `random`, `math`). External local module imports (such as `from services...`) cause GCP's Python parser to fail with `400 Bad Request: No module named 'services'`, which prevents tools from being registered in Agent Studio.
 - **Embedded Mock Data**: Tools include inline mock data fallback structures for catalog, user profile, discount rates, cart memory, and feedback logging to ensure 100% standalone reliability on GCP while maintaining compatibility with local unit test suites.
 
-### 2. Automated Multi-Step Deployment Pipeline (`scripts/build_app.py`)
-Deploying an application via `python scripts/build_app.py --env <dev|staging|prod>` (or via GitHub Actions CD) executes a two-stage process:
-1. **Application ZIP Push (`cxas push`)**: Package and push the application manifest (`app.json`), agent configurations (`RootAgent`, `ShoppingAssistant`, `FeedbackAgent`), and instruction prompts (`instruction.txt`) to the target app path.
-2. **Tool Creation & Agent Binding Sync**: Programmatically compile each self-contained Python tool, register the tool resource on GCP, and bind tool lists to `ShoppingAssistant` (6 shopping tools) and `FeedbackAgent` (`submit_feedback`).
+### 2. Native SCRAPI Deployment Pipeline (`scripts/build_app.py`)
+Deploying an application via `python scripts/build_app.py --env <dev|staging|prod>` (or via GitHub Actions CD) executes a two-phase process:
+1. **Pre-Flight Quality Gates**: Automatically cleans `__pycache__`, executes the unit test suite (`python -m unittest discover tests/`), and runs schema validation (`scripts/validate_schemas.py`). If any test fails, deployment is aborted before reaching GCP.
+2. **Native SCRAPI CLI Push (`cxas push`)**: Resolves the target app resource path (`projects/{project}/locations/{location}/apps/{app_id}`) from `gecx-config.toml` and delegates synchronization directly to the native `cxas push` CLI toolchain.
 
 ---
 
