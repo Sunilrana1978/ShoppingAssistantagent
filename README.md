@@ -209,11 +209,12 @@ Executes unit tests for services, tools, and callback logic:
 uv run python -m unittest discover tests/
 ```
 
-### Run Automated Simulation Evaluations
-Executes multi-turn conversation simulations covering tier discount greetings, catalog searches, server-side cart arithmetic, and feedback submissions:
+### Run Scenario Evaluations & Multi-Turn Simulations
+Executes 8 automated scenario evaluation test cases covering member tier greetings (Gold, Silver, Bronze, Guest), catalog searches, server-side cart pricing & item removals, feedback submissions, and end-to-end multi-agent journey flows:
 ```bash
 uv run python evals/run_evals.py
 ```
+
 
 ### Run Interactive Multi-Agent Demo
 Simulates an interactive customer turn-by-turn conversation:

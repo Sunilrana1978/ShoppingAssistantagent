@@ -41,6 +41,9 @@
       {
         "user_input": "Add sku_1029 size 10 to cart",
         "expected_tool_calls": ["add_to_cart"],
+        "items_to_add": [
+          {"sku": "sku_1029", "qty": 1, "size": 10}
+        ],
         "expected_subtotal": 129.99,
         "expected_discount_amount": 19.50,
         "expected_cart_total": 110.49
@@ -58,6 +61,106 @@
         "expected_tool_calls": ["submit_feedback"],
         "rating": 5,
         "comments": "amazing recommendation!"
+      }
+    ]
+  },
+  {
+    "id": "tc_05_silver_greeting",
+    "description": "Verify Silver tier member receives personalized greeting and 10% discount statement",
+    "user_id": "u_1030",
+    "agent": "ShoppingAssistant",
+    "turns": [
+      {
+        "user_input": "Hello",
+        "expected_user_name": "Jordan",
+        "expected_membership_tier": "silver",
+        "expected_discount_pct": 10
+      }
+    ]
+  },
+  {
+    "id": "tc_06_guest_user_flow",
+    "description": "Verify Guest user flow with 0% discount and standard cart pricing",
+    "user_id": "guest",
+    "agent": "ShoppingAssistant",
+    "turns": [
+      {
+        "user_input": "Hello",
+        "expected_user_name": "Guest",
+        "expected_membership_tier": "none",
+        "expected_discount_pct": 0
+      },
+      {
+        "user_input": "Add sku_1031 to my cart",
+        "expected_tool_calls": ["add_to_cart"],
+        "items_to_add": [
+          {"sku": "sku_1031", "qty": 1, "size": "M"}
+        ],
+        "expected_subtotal": 89.99,
+        "expected_discount_amount": 0.0,
+        "expected_cart_total": 89.99
+      }
+    ]
+  },
+  {
+    "id": "tc_07_cart_item_addition_and_removal",
+    "description": "Verify cart item addition, removal, and server-side pricing recalculation",
+    "user_id": "u_1030",
+    "agent": "ShoppingAssistant",
+    "turns": [
+      {
+        "user_input": "Add sku_1030 and sku_1033 to cart",
+        "expected_tool_calls": ["add_to_cart"],
+        "items_to_add": [
+          {"sku": "sku_1030", "qty": 1, "size": 10},
+          {"sku": "sku_1033", "qty": 1, "size": "L"}
+        ],
+        "expected_subtotal": 179.98,
+        "expected_discount_amount": 18.00,
+        "expected_cart_total": 161.98
+      },
+      {
+        "user_input": "Remove sku_1033 from cart",
+        "expected_tool_calls": ["remove_from_cart"],
+        "sku_to_remove": "sku_1033",
+        "expected_subtotal": 149.99,
+        "expected_discount_amount": 15.00,
+        "expected_cart_total": 134.99
+      }
+    ]
+  },
+  {
+    "id": "tc_08_end_to_end_multi_agent_journey",
+    "description": "Verify end-to-end multi-agent scenario covering user resolution, product search, cart operations, and feedback collection",
+    "user_id": "u_1029",
+    "agent": "MultiAgentJourney",
+    "turns": [
+      {
+        "agent": "ShoppingAssistant",
+        "user_input": "Hi, I am looking for tennis rackets",
+        "expected_user_name": "Alex",
+        "expected_membership_tier": "gold",
+        "expected_discount_pct": 15,
+        "expected_tool_calls": ["search_catalog"],
+        "expected_matched_sku": "sku_1032"
+      },
+      {
+        "agent": "ShoppingAssistant",
+        "user_input": "Add sku_1032 to cart",
+        "expected_tool_calls": ["add_to_cart"],
+        "items_to_add": [
+          {"sku": "sku_1032", "qty": 1, "size": "4 3/8"}
+        ],
+        "expected_subtotal": 199.99,
+        "expected_discount_amount": 30.00,
+        "expected_cart_total": 169.99
+      },
+      {
+        "agent": "FeedbackAgent",
+        "user_input": "I'd like to leave a 5 star rating: Excellent racket recommendation and seamless cart experience!",
+        "expected_tool_calls": ["submit_feedback"],
+        "rating": 5,
+        "comments": "Excellent racket recommendation and seamless cart experience!"
       }
     ]
   }
