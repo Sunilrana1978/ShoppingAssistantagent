@@ -1,22 +1,15 @@
-from typing import Optional, Any
+from typing import Any, Optional, Dict, List
 
-try:
-    from google.adk.agents.callback_context import CallbackContext
-except ImportError:
-    CallbackContext = Any
-
-try:
-    from google.adk.tools import BaseTool
-except ImportError:
-    BaseTool = Any
+Tool = Any
+CallbackContext = Any
 
 
 def after_tool_callback(
-    tool: Any,
-    input: Any = None,
-    callback_context: Any = None,
-    tool_response: Any = None,
-) -> Optional[Any]:
+    tool: Tool,
+    input: dict[str, Any],
+    callback_context: CallbackContext,
+    tool_response: dict[str, Any],
+) -> Optional[dict[str, Any]]:
     """
     Executes after a tool call finishes to update session variables.
     """

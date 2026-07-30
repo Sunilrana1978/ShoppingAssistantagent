@@ -1,21 +1,14 @@
-from typing import Optional, Any
+from typing import Any, Optional, Dict, List
 
-try:
-    from google.adk.agents.callback_context import CallbackContext
-except ImportError:
-    CallbackContext = Any
-
-try:
-    from google.adk.tools import BaseTool
-except ImportError:
-    BaseTool = Any
+Tool = Any
+CallbackContext = Any
 
 
 def before_tool_callback(
-    tool: BaseTool,
-    input: dict,
+    tool: Tool,
+    input: dict[str, Any],
     callback_context: CallbackContext,
-) -> Optional[Any]:
+) -> Optional[dict[str, Any]]:
     """
     Executes before a tool runs to sanitize and validate input arguments.
     """

@@ -1,14 +1,4 @@
-from typing import Optional, Any
-
-try:
-    from google.adk.agents.callback_context import CallbackContext
-except ImportError:
-    CallbackContext = Any
-
-try:
-    from google.genai import types
-except ImportError:
-    types = Any
+from typing import Any, Optional
 
 try:
     from services.user_service import user_service
@@ -19,43 +9,52 @@ except ImportError:
 def before_agent_callback(callback_context: Any) -> Optional[Any]:
     """
     Executes at the beginning of each agent turn.
-
-    Reads user_id from session variables, looks up the user profile,
-    and injects user_name and membership_tier back into session variables
-    so that {user_name} and {membership_tier} placeholders resolve
-    correctly in the instruction template before the LLM call.
+    Reads user_id from session state, looks up profile, and populates
+    user_name and membership_tier.
     """
     try:
-        session_vars = callback_context.variables
+        # Extract state dictionary safely across all CXAS runtime object wrappers
+        if hasattr(callback_context, "state") and isinstance(getattr(callback_context, "state"), dict):
+            state = callback_context.state
+        elif hasattr(callback_context, "variables") and isinstance(getattr(callback_context, "variables"), dict):
+            state = callback_context.variables
+        elif isinstance(callback_context, dict):
+            if "state" in callback_context and isinstance(callback_context["state"], dict):
+                state = callback_context["state"]
+            elif "variables" in callback_context and isinstance(callback_context["variables"], dict):
+                state = callback_context["variables"]
+            else:
+                state = callback_context
+        else:
+            state = {}
 
-        # --- Short-circuit override (maintenance / kill-switch) -----------
-        if session_vars.get("skip_llm_agent") is True:
-            if types and hasattr(types, "Content") and hasattr(types, "Part"):
-                return types.Content(
-                    parts=[types.Part.from_text(
-                        text="The system is undergoing routine maintenance. "
-                             "Please try again later."
-                    )]
-                )
-            return {"parts": [{"text": "The system is undergoing routine maintenance. Please try again later."}]}
+        def set_var(k: str, v: Any):
+            state[k] = v
+            if hasattr(callback_context, "state") and isinstance(getattr(callback_context, "state"), dict):
+                callback_context.state[k] = v
+            if hasattr(callback_context, "variables") and isinstance(getattr(callback_context, "variables"), dict):
+                callback_context.variables[k] = v
+            if isinstance(callback_context, dict):
+                if "state" in callback_context and isinstance(callback_context["state"], dict):
+                    callback_context["state"][k] = v
+                if "variables" in callback_context and isinstance(callback_context["variables"], dict):
+                    callback_context["variables"][k] = v
+                callback_context[k] = v
 
-        # --- Extract user_id from session variables -----------------------
-        user_id = session_vars.get("user_id", None)
-
+        user_id = state.get("user_id", None)
         if isinstance(user_id, str):
             user_id = user_id.strip('"').strip("'").strip()
 
         if not user_id or user_id.lower() == "guest":
-            if not session_vars.get("user_name"):
-                callback_context.variables["user_name"] = "Shopper"
+            if not state.get("user_name"):
+                set_var("user_name", "Shopper")
             return None
 
-        # --- Fetch user profile -------------------------------------------
         if user_service:
             profile = user_service.get_user_profile(user_id)
         else:
             mock_users = {
-                "u_1029": {"name": "Alex",   "membership_tier": "gold"},
+                "u_1029": {"name": "Alex", "membership_tier": "gold"},
                 "u_1030": {"name": "Jordan", "membership_tier": "silver"},
                 "u_1031": {"name": "Taylor", "membership_tier": "bronze"},
             }
@@ -67,10 +66,9 @@ def before_agent_callback(callback_context: Any) -> Optional[Any]:
         name = profile.get("user_name") or profile.get("name", "Shopper")
         tier = profile.get("membership_tier", "none")
 
-        # --- Write back into session variables ----------------------------
-        callback_context.variables["user_id"] = user_id
-        callback_context.variables["user_name"] = name
-        callback_context.variables["membership_tier"] = tier
+        set_var("user_id", user_id)
+        set_var("user_name", name)
+        set_var("membership_tier", tier)
 
     except Exception:
         pass

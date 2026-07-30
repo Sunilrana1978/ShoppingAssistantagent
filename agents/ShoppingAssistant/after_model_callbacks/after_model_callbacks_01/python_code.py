@@ -1,20 +1,13 @@
-from typing import Optional, Any, Dict, List
+from typing import Any, Optional, Dict, List
 
-try:
-    from google.adk.agents.callback_context import CallbackContext
-except ImportError:
-    CallbackContext = Any
-
-try:
-    from google.genai import types
-except ImportError:
-    types = Any
+CallbackContext = Any
+LlmResponse = Any
 
 
 def after_model_callback(
     callback_context: CallbackContext,
-    llm_response: Any,
-) -> Optional[Any]:
+    llm_response: LlmResponse,
+) -> Optional[LlmResponse]:
     """
     Executes after the LLM responds to attach rich UI widget payloads
     (product cards, etc.) to the model response.
