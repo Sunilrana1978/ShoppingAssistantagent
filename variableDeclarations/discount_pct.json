@@ -1,6 +1,0 @@
-{
-  "name": "discount_pct",
-  "displayName": "Discount Percentage",
-  "description": "Active discount percentage.",
-  "dataType": "NUMBER"
-}

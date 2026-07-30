@@ -1,7 +1,0 @@
-{
-  "name": "feedback_submitted",
-  "displayName": "Feedback Submitted Flag",
-  "description": "Flag indicating feedback submission status.",
-  "dataType": "BOOLEAN",
-  "defaultValue": "false"
-}

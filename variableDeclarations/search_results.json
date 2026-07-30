@@ -1,7 +1,0 @@
-{
-  "name": "search_results",
-  "displayName": "Search Results",
-  "description": "List of matching product objects from catalog search.",
-  "dataType": "STRING",
-  "defaultValue": "[]"
-}

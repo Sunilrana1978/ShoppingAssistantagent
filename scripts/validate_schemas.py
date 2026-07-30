@@ -65,17 +65,6 @@ def validate_project():
             json.load(f)
         print(f"✅ data/{data_fname} valid")
 
-    # Validate variable declarations
-    vdir = root / "variableDeclarations"
-    if vdir.exists():
-        vfiles = list(vdir.glob("*.json"))
-        for vf in vfiles:
-            with open(vf, "r") as f:
-                vdata = json.load(f)
-            if "name" not in vdata or "dataType" not in vdata:
-                print(f"❌ Error: {vf.name} missing 'name' or 'dataType'")
-                sys.exit(1)
-        print(f"✅ variableDeclarations/ valid ({len(vfiles)} variable declarations verified)")
 
     print("\n🎉 All Multi-Agent manifests, XML instructions, and data schemas validated successfully!")
 

@@ -1,6 +1,0 @@
-{
-  "name": "user_id",
-  "displayName": "User ID",
-  "description": "Unique user identifier from channel payload.",
-  "dataType": "STRING"
-}
