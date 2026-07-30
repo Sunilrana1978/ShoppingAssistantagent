@@ -1,0 +1,33 @@
+{
+  "displayName": "tc_04_feedback_submission",
+  "description": "Verify FeedbackAgent rating and comment submission flow",
+  "tags": [
+    "P0",
+    "FeedbackAgent",
+    "Feedback"
+  ],
+  "golden": {
+    "turns": [
+      {
+        "steps": [
+          {
+            "userInput": {
+              "text": "I want to leave feedback: 5 stars, amazing recommendation!"
+            }
+          },
+          {
+            "expectation": {
+              "agentResponse": {
+                "chunks": [
+                  {
+                    "text": "Thank you for your 5-star feedback! Your response has been logged."
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

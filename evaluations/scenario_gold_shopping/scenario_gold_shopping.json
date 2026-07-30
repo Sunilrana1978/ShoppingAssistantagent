@@ -1,0 +1,22 @@
+{
+  "displayName": "scenario_gold_shopping",
+  "description": "Simulates an AI synthetic user purchasing trail running shoes with Gold membership discount",
+  "tags": [
+    "P0",
+    "ShoppingAssistant",
+    "Scenario"
+  ],
+  "scenario": {
+    "task": "Find trail running shoes in size 10, add them to your cart, and confirm your 15% Gold member discount was applied.",
+    "userFacts": [
+      {
+        "name": "persona",
+        "value": "You are Alex, a Gold tier member (user_id: u_1029)."
+      }
+    ],
+    "maxTurns": 8,
+    "variableOverrides": {
+      "user_id": "u_1029"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "displayName": "tc_01_gold_greeting",
+  "description": "Verify Gold tier member receives personalized greeting and 15% discount statement",
+  "tags": [
+    "P0",
+    "ShoppingAssistant",
+    "Gold"
+  ],
+  "golden": {
+    "turns": [
+      {
+        "steps": [
+          {
+            "userInput": {
+              "text": "Hello"
+            }
+          },
+          {
+            "expectation": {
+              "agentResponse": {
+                "chunks": [
+                  {
+                    "text": "Hello Alex! Welcome to our Sporting Goods Store. As a Gold member, you get 15% off your order."
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

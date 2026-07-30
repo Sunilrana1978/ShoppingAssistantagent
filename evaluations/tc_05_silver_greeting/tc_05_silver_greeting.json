@@ -1,0 +1,33 @@
+{
+  "displayName": "tc_05_silver_greeting",
+  "description": "Verify Silver tier member receives personalized greeting and 10% discount statement",
+  "tags": [
+    "P1",
+    "ShoppingAssistant",
+    "Silver"
+  ],
+  "golden": {
+    "turns": [
+      {
+        "steps": [
+          {
+            "userInput": {
+              "text": "Hello"
+            }
+          },
+          {
+            "expectation": {
+              "agentResponse": {
+                "chunks": [
+                  {
+                    "text": "Hello Jordan! As a Silver member, you receive 10% off today."
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

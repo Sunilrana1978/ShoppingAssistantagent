@@ -1,0 +1,33 @@
+{
+  "displayName": "tc_02_bronze_greeting",
+  "description": "Verify Bronze tier member receives 5% discount statement",
+  "tags": [
+    "P1",
+    "ShoppingAssistant",
+    "Bronze"
+  ],
+  "golden": {
+    "turns": [
+      {
+        "steps": [
+          {
+            "userInput": {
+              "text": "Hi there"
+            }
+          },
+          {
+            "expectation": {
+              "agentResponse": {
+                "chunks": [
+                  {
+                    "text": "Welcome Taylor! As a Bronze member, you receive 5% off."
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

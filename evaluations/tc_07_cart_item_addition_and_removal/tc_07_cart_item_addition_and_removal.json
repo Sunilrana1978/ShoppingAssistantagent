@@ -1,0 +1,53 @@
+{
+  "displayName": "tc_07_cart_item_addition_and_removal",
+  "description": "Verify cart item addition, removal, and server-side pricing recalculation",
+  "tags": [
+    "P0",
+    "ShoppingAssistant",
+    "Cart"
+  ],
+  "golden": {
+    "turns": [
+      {
+        "steps": [
+          {
+            "userInput": {
+              "text": "Add sku_1030 and sku_1033 to cart"
+            }
+          },
+          {
+            "expectation": {
+              "agentResponse": {
+                "chunks": [
+                  {
+                    "text": "Added Apex Aero Road Running Shoes (.99) and UltraGrip Gym Gloves (.99) to cart."
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "steps": [
+          {
+            "userInput": {
+              "text": "Remove sku_1033 from cart"
+            }
+          },
+          {
+            "expectation": {
+              "agentResponse": {
+                "chunks": [
+                  {
+                    "text": "Removed UltraGrip Gym Gloves from cart."
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
