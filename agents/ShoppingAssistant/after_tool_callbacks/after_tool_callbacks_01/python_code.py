@@ -130,6 +130,36 @@ def set_state_var(callback_context: Any, key: str, value: Any) -> None:
                 _set_on_target(getattr(session, attr))
 
 
+def _retrieve_memories(user_id: str, project_id: str = "ecom-cx-agent", location: str = "us-central1") -> list:
+    """Retrieve long-term memory facts from Vertex AI Memory Bank for user_id."""
+    if not _MEMORY_BANK_AVAILABLE or not user_id or user_id.lower() in ("guest", "u_guest"):
+        return []
+    try:
+        endpoint = f"{location}-aiplatform.googleapis.com"
+        client = MemoryBankServiceClient(client_options={"api_endpoint": endpoint})
+        engine_id = os.getenv("REASONING_ENGINE_ID", DEFAULT_REASONING_ENGINE_ID)
+        parent = f"projects/{project_id}/locations/{location}/reasoningEngines/{engine_id}"
+        
+        req = {"parent": parent, "scope": {"user_id": user_id}}
+        response = client.retrieve_memories(request=req)
+        
+        memories = []
+        if hasattr(response, "retrieved_memories") and response.retrieved_memories:
+            for item in response.retrieved_memories:
+                m = getattr(item, "memory", item)
+                fact = getattr(m, "fact", "") or getattr(m, "text", "") or str(m)
+                if fact and fact not in memories:
+                    memories.append(fact)
+        elif hasattr(response, "memories") and response.memories:
+            for m in response.memories:
+                fact = getattr(m, "fact", "") or getattr(m, "text", "") or str(m)
+                if fact and fact not in memories:
+                    memories.append(fact)
+        return memories
+    except Exception:
+        return []
+
+
 def after_tool_callback(
     tool: Tool,
     input: dict[str, Any],
@@ -208,15 +238,9 @@ def after_tool_callback(
         set_state_var(context_obj, "user_name", name)
         set_state_var(context_obj, "membership_tier", tier)
 
-        # Restore long term memories for newly resolved user_id
+        # Restore long term memories dynamically from Vertex AI Memory Bank
         if uid and uid.lower() not in ("guest", "u_guest"):
-            memories = tool_output.get("memories", [])
-            prev_cart = tool_output.get("previous_cart", {})
-            if prev_cart and prev_cart.get("items"):
-                prev_items = [f"{i.get('name')} (size {i.get('size')}, qty {i.get('qty')})" for i in prev_cart["items"]]
-                fact = f"User previously had items in cart in past chat: {', '.join(prev_items)} with Total ${prev_cart.get('total')}."
-                if fact not in memories:
-                    memories.append(fact)
+            memories = _retrieve_memories(uid)
             set_state_var(context_obj, "long_term_memories", memories)
 
     elif tool_name == "search_catalog":
