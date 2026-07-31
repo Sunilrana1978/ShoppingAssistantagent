@@ -157,11 +157,6 @@
       }
     }
   ],
-  "guardrails": [
-    "prompt_guard",
-    "competitor_blocklist",
-    "hallucination_safety_filter"
-  ],
   "timeZoneSettings": {
     "timeZone": "America/Los_Angeles"
   }
