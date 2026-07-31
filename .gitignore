@@ -10,3 +10,4 @@ build/
 .venv/
 .uv_cache/
 .uv_python/
+data/session_carts.json
