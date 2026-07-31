@@ -9,7 +9,7 @@ class MockCartService(ICartService):
         # User storage mapping: user_id -> cart dict
         self._user_carts: Dict[str, Dict[str, Any]] = {}
 
-    def get_cart(self, session_id: str, user_id: str = "") -> Dict[str, Any]:
+    def get_cart(self, session_id: str = "", user_id: str = "") -> Dict[str, Any]:
         sid = str(session_id or "sess_default").strip()
         uid = str(user_id or "").strip()
 
@@ -22,12 +22,17 @@ class MockCartService(ICartService):
             self._carts[sid] = cart
             return cart
 
+        # Fallback to latest active cart in memory if sid is default/empty
+        if self._carts:
+            latest_cart = list(self._carts.values())[-1]
+            return latest_cart
+
         cart = {
             "session_id": sid,
             "user_id": uid,
             "items": [],
             "subtotal": 0.0,
-            "discount_pct": 0,
+            "discount_pct": 0.0,
             "discount_amount": 0.0,
             "total": 0.0
         }

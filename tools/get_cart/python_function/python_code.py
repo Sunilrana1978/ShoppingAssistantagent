@@ -5,7 +5,7 @@ try:
 except ImportError:
     cart_service = None
 
-def get_cart(session_id: str, user_id: str = "") -> Dict[str, Any]:
+def get_cart(session_id: str = "", user_id: str = "") -> Dict[str, Any]:
     """
     Get active cart details for a session or user via cart_service.
     """

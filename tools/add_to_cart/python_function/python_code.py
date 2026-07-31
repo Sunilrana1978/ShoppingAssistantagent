@@ -9,8 +9,8 @@ except ImportError:
 _FALLBACK_CARTS: Dict[str, Dict[str, Any]] = {}
 
 def add_to_cart(
-    session_id: str,
-    sku: str,
+    session_id: str = "",
+    sku: str = "",
     qty: int = 1,
     size: str = "",
     discount_pct: float = 0.0,
