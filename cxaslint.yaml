@@ -1,0 +1,9 @@
+# Linter configuration for CXAS Agent App
+app_dir: "."
+evals_dir: "evaluations"
+
+ignore:
+  - "**/__pycache__/**"
+  - "**/__pycache__"
+  - "tools/__pycache__"
+  - "tools/__pycache__/**"

@@ -15,9 +15,19 @@
       "enabled": true,
       "project": "ecom-cx-agent",
       "dataset": "shopping_assistant_logs"
+    },
+    "redactionConfig": {
+      "enableRedaction": true
     }
   },
   "variableDeclarations": [
+    {
+      "name": "retry_count",
+      "description": "Tracks tool execution retry loops within a single session",
+      "schema": {
+        "type": "NUMBER"
+      }
+    },
     {
       "name": "active_intent",
       "description": "Active user intent detected by RootAgent.",
@@ -36,18 +46,36 @@
             "items": {
               "type": "OBJECT",
               "properties": {
-                "sku": { "type": "STRING" },
-                "name": { "type": "STRING" },
-                "qty": { "type": "INTEGER" },
-                "size": { "type": "STRING" },
-                "unit_price": { "type": "NUMBER" }
+                "sku": {
+                  "type": "STRING"
+                },
+                "name": {
+                  "type": "STRING"
+                },
+                "qty": {
+                  "type": "INTEGER"
+                },
+                "size": {
+                  "type": "STRING"
+                },
+                "unit_price": {
+                  "type": "NUMBER"
+                }
               }
             }
           },
-          "subtotal": { "type": "NUMBER" },
-          "discount_pct": { "type": "NUMBER" },
-          "discount_amount": { "type": "NUMBER" },
-          "total": { "type": "NUMBER" }
+          "subtotal": {
+            "type": "NUMBER"
+          },
+          "discount_pct": {
+            "type": "NUMBER"
+          },
+          "discount_amount": {
+            "type": "NUMBER"
+          },
+          "total": {
+            "type": "NUMBER"
+          }
         }
       }
     },
@@ -128,6 +156,11 @@
         }
       }
     }
+  ],
+  "guardrails": [
+    "prompt_guard",
+    "competitor_blocklist",
+    "hallucination_safety_filter"
   ],
   "timeZoneSettings": {
     "timeZone": "America/Los_Angeles"
