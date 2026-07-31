@@ -184,17 +184,21 @@ def before_agent_callback(callback_context: Any) -> Optional[Any]:
         session_id = state.get("session_id", "sess_default")
         cart = state.get("cart")
         
-        # If cart in current session is empty, attempt lookup from previous_cart or cart_service
-        if not cart or not cart.get("items"):
+        # Check active cart from cart_service first
+        restored_cart = None
+        if cart_service:
+            restored_cart = cart_service.get_cart(session_id, user_id=user_id)
+
+        if restored_cart and restored_cart.get("items"):
+            cart = restored_cart
+            set_state_var(callback_context, "cart", cart)
+        elif not cart or not cart.get("items"):
             if previous_cart and previous_cart.get("items"):
                 cart = dict(previous_cart)
                 cart["session_id"] = session_id
                 set_state_var(callback_context, "cart", cart)
-            elif cart_service:
-                restored_cart = cart_service.get_cart(session_id, user_id=user_id)
-                if restored_cart and restored_cart.get("items"):
-                    cart = restored_cart
-                    set_state_var(callback_context, "cart", cart)
+                if cart_service:
+                    cart_service._carts[session_id] = cart
 
         if cart and isinstance(cart, dict) and cart.get("items"):
             item_summaries = [f"{i.get('name')} (size {i.get('size')}, qty {i.get('qty')})" for i in cart["items"]]
