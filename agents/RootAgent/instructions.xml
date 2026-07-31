@@ -12,6 +12,11 @@
     User ID: {user_id}
     User Name: {user_name}
   </context>
+  <state_visibility>
+    The following session variables are available in session state:
+    - Active Cart: {cart} ($session.variables.cart)
+    - Active Intent: {active_intent} ($session.variables.active_intent)
+  </state_visibility>
   <taskflow>
     <step name="Route Customer Intent">
       1. If the user expresses an intent to buy, browse, ask about shoes, apparel, equipment, or cart, transfer immediately to {@AGENT: ShoppingAssistant}.

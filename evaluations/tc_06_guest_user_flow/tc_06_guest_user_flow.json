@@ -16,6 +16,8 @@
       }
     ],
     "maxTurns": 6,
+    "rubrics": [],
+    "scenario_expectations": [],
     "variableOverrides": {
       "user_id": "guest"
     }

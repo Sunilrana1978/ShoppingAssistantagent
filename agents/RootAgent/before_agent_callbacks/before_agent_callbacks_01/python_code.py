@@ -1,6 +1,9 @@
 from typing import Any, Optional
 import json
 
+CallbackContext = Any
+Content = Any
+
 try:
     from services.user_service import user_service
 except ImportError:
@@ -15,63 +18,119 @@ except ImportError:
 # Long-Term Memory Bank integration (Vertex AI Memory Bank)
 # ---------------------------------------------------------------------------
 try:
-    from google.cloud.aiplatform.memory import MemoryBankServiceClient  # type: ignore
+    from google.cloud.aiplatform_v1beta1 import MemoryBankServiceClient  # type: ignore
     _MEMORY_BANK_AVAILABLE = True
 except ImportError:
-    _MEMORY_BANK_AVAILABLE = False
+    try:
+        from google.cloud.aiplatform.memory import MemoryBankServiceClient  # type: ignore
+        _MEMORY_BANK_AVAILABLE = True
+    except ImportError:
+        _MEMORY_BANK_AVAILABLE = False
 
 
 def get_state(callback_context: Any) -> dict:
     """Helper to retrieve state dict following CXAS Scrapi Design Guide standards."""
-    if hasattr(callback_context, "state") and isinstance(getattr(callback_context, "state"), dict):
-        return callback_context.state
-    if hasattr(callback_context, "variables") and isinstance(getattr(callback_context, "variables"), dict):
-        return callback_context.variables
+    if not callback_context:
+        return {}
     if isinstance(callback_context, dict):
-        if "state" in callback_context and isinstance(callback_context["state"], dict):
+        if "state" in callback_context and callback_context["state"] is not None:
             return callback_context["state"]
-        if "variables" in callback_context and isinstance(callback_context["variables"], dict):
+        if "variables" in callback_context and callback_context["variables"] is not None:
             return callback_context["variables"]
         return callback_context
+
+    if hasattr(callback_context, "state") and getattr(callback_context, "state") is not None:
+        return getattr(callback_context, "state")
+    if hasattr(callback_context, "variables") and getattr(callback_context, "variables") is not None:
+        return getattr(callback_context, "variables")
+    if hasattr(callback_context, "session"):
+        session = getattr(callback_context, "session")
+        if hasattr(session, "state") and getattr(session, "state") is not None:
+            return getattr(session, "state")
+        if hasattr(session, "variables") and getattr(session, "variables") is not None:
+            return getattr(session, "variables")
+        if hasattr(session, "parameters") and getattr(session, "parameters") is not None:
+            return getattr(session, "parameters")
     return {}
 
 
 def set_state_var(callback_context: Any, key: str, value: Any) -> None:
-    """Helper to write state variable across CXAS runtime and local test harnesses."""
+    """Helper to write state variable across all Python object/dict types in CXAS Agent Engine."""
+    if not callback_context:
+        return
+
+    def _set_on_target(target: Any):
+        if target is None:
+            return
+        if isinstance(target, dict):
+            target[key] = value
+            return
+        try:
+            target[key] = value
+        except Exception:
+            pass
+        try:
+            setattr(target, key, value)
+        except Exception:
+            pass
+        for method in ("set_variable", "set_session_variable", "set_parameter", "update_variable", "add_variable"):
+            if hasattr(target, method):
+                try:
+                    getattr(target, method)(key, value)
+                except Exception:
+                    pass
+
+    _set_on_target(callback_context)
+
     state = get_state(callback_context)
-    state[key] = value
-    if hasattr(callback_context, "state") and isinstance(getattr(callback_context, "state"), dict):
-        callback_context.state[key] = value
-    if hasattr(callback_context, "variables") and isinstance(getattr(callback_context, "variables"), dict):
-        callback_context.variables[key] = value
-    if isinstance(callback_context, dict):
-        if "state" in callback_context and isinstance(callback_context["state"], dict):
-            callback_context["state"][key] = value
-        if "variables" in callback_context and isinstance(callback_context["variables"], dict):
-            callback_context["variables"][key] = value
-        callback_context[key] = value
+    if state is not None and state is not callback_context:
+        _set_on_target(state)
+
+    for attr in ("state", "variables", "session_variables", "parameters"):
+        if hasattr(callback_context, attr):
+            _set_on_target(getattr(callback_context, attr))
+
+    if hasattr(callback_context, "session"):
+        session = getattr(callback_context, "session")
+        _set_on_target(session)
+        for attr in ("state", "variables", "session_variables", "parameters"):
+            if hasattr(session, attr):
+                _set_on_target(getattr(session, attr))
 
 
-def _retrieve_memories(user_id: str) -> list:
+import os
+
+def _retrieve_memories(user_id: str, project_id: str = "ecom-cx-agent", location: str = "us-central1") -> list:
     """
     Retrieve up to 5 long-term memory facts from Vertex AI Memory Bank
     for the given user_id.
     """
-    if not _MEMORY_BANK_AVAILABLE:
+    if not _MEMORY_BANK_AVAILABLE or not user_id:
         return []
 
     try:
-        client = MemoryBankServiceClient()
+        endpoint = f"{location}-aiplatform.googleapis.com"
+        client = MemoryBankServiceClient(client_options={"api_endpoint": endpoint})
+        engine_id = os.getenv("REASONING_ENGINE_ID", "432575911913586688")
+        parent = f"projects/{project_id}/locations/{location}/reasoningEngines/{engine_id}"
         response = client.retrieve_memories(
+            parent=parent,
             user_id=user_id,
             max_results=5,
         )
-        return [m.fact for m in response.memories if hasattr(m, "fact")]
+        memories = []
+        if hasattr(response, "memories") and response.memories:
+            for m in response.memories:
+                fact = getattr(m, "fact", None) or getattr(m, "text", None) or str(m)
+                if fact:
+                    memories.append(fact)
+        return memories
     except Exception:
+        # Fall back gracefully to local profile memories if GCP Memory Bank is unconfigured
         return []
 
 
-def before_agent_callback(callback_context: Any) -> Optional[Any]:
+def before_agent_callback(callback_context: CallbackContext) -> Optional[Content]:
     """
     Executes at the beginning of each agent turn (RootAgent).
 
@@ -167,21 +226,17 @@ def before_agent_callback(callback_context: Any) -> Optional[Any]:
         session_id = state.get("session_id", "sess_default")
         cart = state.get("cart")
         
-        # If cart in current session is empty, attempt lookup from previous_cart or cart_service
-        if not cart or not cart.get("items"):
-            if previous_cart and previous_cart.get("items"):
-                cart = dict(previous_cart)
-                cart["session_id"] = session_id
+        # Check active cart from cart_service
+        if cart_service:
+            restored_cart = cart_service.get_cart(session_id, user_id=user_id)
+            if restored_cart and restored_cart.get("items"):
+                cart = restored_cart
                 set_state_var(callback_context, "cart", cart)
-            elif cart_service:
-                restored_cart = cart_service.get_cart(session_id, user_id=user_id)
-                if restored_cart and restored_cart.get("items"):
-                    cart = restored_cart
-                    set_state_var(callback_context, "cart", cart)
 
-        if cart and isinstance(cart, dict) and cart.get("items"):
-            item_summaries = [f"{i.get('name')} (size {i.get('size')}, qty {i.get('qty')})" for i in cart["items"]]
-            memory_fact = f"User has items in cart from previous chat: {', '.join(item_summaries)} with Total ${cart.get('total')}."
+        # Include previous session cart in long-term memory facts (without polluting active cart)
+        if previous_cart and previous_cart.get("items"):
+            prev_items = [f"{i.get('name')} (size {i.get('size')}, qty {i.get('qty')})" for i in previous_cart["items"]]
+            memory_fact = f"User previously had items in cart in past chat: {', '.join(prev_items)} with Total ${previous_cart.get('total')}."
             if memory_fact not in memories:
                 memories.append(memory_fact)
 

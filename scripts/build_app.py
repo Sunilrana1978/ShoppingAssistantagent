@@ -81,7 +81,9 @@ def main():
 
     # 3. Synchronize via native SCRAPI CLI `cxas push`
     print(f"\n☁️ Pushing resources natively via SCRAPI CLI to {target_app_path}...")
-    push_cmd = ["uv", "run", "cxas", "push", "--to", target_app_path]
+    cxas_bin = Path(sys.executable).parent / "cxas"
+    push_bin = str(cxas_bin) if cxas_bin.exists() else "cxas"
+    push_cmd = [push_bin, "push", "--to", target_app_path]
     try:
         subprocess.run(push_cmd, check=True)
     except subprocess.CalledProcessError as e:

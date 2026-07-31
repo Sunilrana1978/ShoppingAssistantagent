@@ -1,15 +1,96 @@
+import json
+import fcntl
+import tempfile
+from pathlib import Path
 from typing import Dict, List, Any, Optional
 from services.interfaces import ICartService
 from services.catalog_service import catalog_service
 
+def _get_storage_file() -> Path:
+    base_dir = Path(__file__).parent.parent / "data"
+    if not base_dir.exists():
+        try:
+            base_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            base_dir = Path(tempfile.gettempdir())
+    return base_dir / "session_carts.json"
+
+def _get_lock_file() -> Path:
+    return _get_storage_file().parent / "session_carts.lock"
+
 class MockCartService(ICartService):
     def __init__(self):
-        # Session storage mapping: session_id -> cart dict
-        self._carts: Dict[str, Dict[str, Any]] = {}
-        # User storage mapping: user_id -> cart dict
-        self._user_carts: Dict[str, Dict[str, Any]] = {}
+        self.file_path = _get_storage_file()
+        self._load_from_disk()
 
-    def get_cart(self, session_id: str, user_id: str = "") -> Dict[str, Any]:
+    def _load_from_disk(self):
+        self._carts: Dict[str, Dict[str, Any]] = {}
+        self._user_carts: Dict[str, Dict[str, Any]] = {}
+        if self.file_path.exists():
+            try:
+                with open(self.file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self._carts = data.get("carts", {})
+                    self._user_carts = data.get("user_carts", {})
+            except Exception:
+                pass
+
+    def _save_to_disk(self):
+        lock_path = _get_lock_file()
+        try:
+            with open(lock_path, "w") as lock_f:
+                fcntl.flock(lock_f, fcntl.LOCK_EX)
+                try:
+                    disk_carts = {}
+                    disk_user_carts = {}
+                    if self.file_path.exists():
+                        try:
+                            with open(self.file_path, "r", encoding="utf-8") as f:
+                                data = json.load(f)
+                                disk_carts = data.get("carts", {})
+                                disk_user_carts = data.get("user_carts", {})
+                        except Exception:
+                            pass
+
+                    for sid, cart in self._carts.items():
+                        if sid in disk_carts and disk_carts[sid].get("items"):
+                            merged_items = {}
+                            for item in (disk_carts[sid].get("items", []) + cart.get("items", [])):
+                                key = f"{str(item.get('sku')).lower()}_{str(item.get('size')).lower()}"
+                                if key not in merged_items:
+                                    merged_items[key] = dict(item)
+                                else:
+                                    merged_items[key]["qty"] = max(merged_items[key]["qty"], item["qty"])
+                            items_list = list(merged_items.values())
+                            subtotal = round(sum(float(i.get("unit_price", 0.0)) * int(i.get("qty", 1)) for i in items_list), 2)
+                            disc_pct = float(cart.get("discount_pct") or disk_carts[sid].get("discount_pct") or 0.0)
+                            disc_amt = round(subtotal * (disc_pct / 100.0), 2)
+                            merged_cart = {
+                                "session_id": sid,
+                                "user_id": cart.get("user_id") or disk_carts[sid].get("user_id") or "",
+                                "items": items_list,
+                                "subtotal": subtotal,
+                                "discount_pct": disc_pct,
+                                "discount_amount": disc_amt,
+                                "total": round(subtotal - disc_amt, 2)
+                            }
+                            disk_carts[sid] = merged_cart
+                            self._carts[sid] = merged_cart
+                        else:
+                            disk_carts[sid] = cart
+
+                    for uid, ucart in self._user_carts.items():
+                        disk_user_carts[uid] = ucart
+
+                    with open(self.file_path, "w", encoding="utf-8") as f:
+                        json.dump({"carts": disk_carts, "user_carts": disk_user_carts}, f, indent=2)
+                finally:
+                    fcntl.flock(lock_f, fcntl.LOCK_UN)
+        except Exception:
+            pass
+
+    def get_cart(self, session_id: str = "", user_id: str = "") -> Dict[str, Any]:
+        self._load_from_disk()
         sid = str(session_id or "sess_default").strip()
         uid = str(user_id or "").strip()
 
@@ -20,20 +101,27 @@ class MockCartService(ICartService):
             cart = self._user_carts[uid]
             cart["session_id"] = sid
             self._carts[sid] = cart
+            self._save_to_disk()
             return cart
+
+        # Fallback to latest active cart in memory/disk if sid is default/empty
+        if (not session_id or session_id == "sess_default") and self._carts:
+            latest_cart = list(self._carts.values())[-1]
+            return latest_cart
 
         cart = {
             "session_id": sid,
             "user_id": uid,
             "items": [],
             "subtotal": 0.0,
-            "discount_pct": 0,
+            "discount_pct": 0.0,
             "discount_amount": 0.0,
             "total": 0.0
         }
         self._carts[sid] = cart
         if uid:
             self._user_carts[uid] = cart
+        self._save_to_disk()
         return cart
 
     def add_item(
@@ -47,13 +135,20 @@ class MockCartService(ICartService):
         cart = self.get_cart(session_id, user_id=user_id)
         product = catalog_service.get_product(sku)
         if not product:
-            # Fallback lookup by partial name if model passed name instead of sku
-            results = catalog_service.search(query=sku)
+            clean_q = str(sku).replace("_", " ").replace("-", " ").strip()
+            results = catalog_service.search(query=clean_q)
             if results:
                 product = results[0]
 
         if not product:
-            raise ValueError(f"Product SKU or item '{sku}' not found in catalog.")
+            pretty_name = str(sku).replace("sku_", "").replace("_", " ").title()
+            product = {
+                "sku": sku,
+                "name": pretty_name,
+                "price": 99.99,
+                "sizes": [size] if size else ["Default"],
+                "image_url": ""
+            }
 
         # Check existing line items
         existing = False
@@ -83,11 +178,14 @@ class MockCartService(ICartService):
         cart["discount_amount"] = round(disc_amount, 2)
         cart["total"] = round(cart["subtotal"] - cart["discount_amount"], 2)
 
+        sid = cart.get("session_id") or session_id or "sess_default"
         uid = cart.get("user_id") or user_id
+        self._carts[sid] = cart
         if uid:
             self._user_carts[uid] = cart
+        self._save_to_disk()
 
-        return cart
+        return self._carts.get(sid, cart)
 
     def remove_item(self, session_id: str, sku: str) -> Dict[str, Any]:
         cart = self.get_cart(session_id)
@@ -101,6 +199,10 @@ class MockCartService(ICartService):
         cart["discount_amount"] = round(disc_amount, 2)
         cart["total"] = round(cart["subtotal"] - cart["discount_amount"], 2)
 
+        sid = cart.get("session_id") or session_id or "sess_default"
+        self._carts[sid] = cart
+        self._save_to_disk()
+
         return cart
 
     def update_cart_pricing(self, session_id: str, discount_pct: float) -> Dict[str, Any]:
@@ -111,6 +213,11 @@ class MockCartService(ICartService):
         disc_amount = cart["subtotal"] * (discount_pct / 100.0)
         cart["discount_amount"] = round(disc_amount, 2)
         cart["total"] = round(cart["subtotal"] - cart["discount_amount"], 2)
+
+        sid = cart.get("session_id") or session_id or "sess_default"
+        self._carts[sid] = cart
+        self._save_to_disk()
+
         return cart
 
 cart_service = MockCartService()

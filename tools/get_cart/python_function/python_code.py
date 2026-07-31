@@ -1,56 +1,42 @@
-from typing import Dict, Any
+import os
+import json
+import tempfile
+from typing import Dict, Any, Optional
 
-SESSION_CARTS = {}
-USER_CARTS = {
-    "u_1029": {
-        "session_id": "sess_previous",
-        "user_id": "u_1029",
-        "items": [
-            {
-                "sku": "sku_1029",
-                "name": "TrailBlaze Pro Trail Runner",
-                "qty": 1,
-                "size": "10",
-                "unit_price": 129.99
-            }
-        ],
-        "subtotal": 129.99,
-        "discount_pct": 15.0,
-        "discount_amount": 19.50,
-        "total": 110.49
-    },
-    "u_1030": {
-        "session_id": "sess_previous",
-        "user_id": "u_1030",
-        "items": [
-            {
-                "sku": "sku_1030",
-                "name": "Apex Aero Road Running Shoes",
-                "qty": 1,
-                "size": "10",
-                "unit_price": 149.99
-            }
-        ],
-        "subtotal": 149.99,
-        "discount_pct": 10.0,
-        "discount_amount": 15.00,
-        "total": 134.99
-    }
-}
+try:
+    from services.cart_service import cart_service
+except ImportError:
+    cart_service = None
 
-def get_cart(session_id: str, user_id: str = "") -> Dict[str, Any]:
+
+def get_cart(session_id: str = "", user_id: str = "", current_cart: Dict[str, Any] = {}) -> Dict[str, Any]:
     """
-    Get active cart details for a session or user.
-    Retrieves previous session cart if user_id matches across separate chat sessions.
+    Get active cart details for a session or user via cart_service or fallback state.
     """
     try:
         sid = str(session_id or "sess_default").strip()
         uid = str(user_id or "").strip()
 
-        cart = SESSION_CARTS.get(sid)
-        if not cart and uid and uid in USER_CARTS:
-            cart = dict(USER_CARTS[uid])
-            cart["session_id"] = sid
+        # Read current cart from context.state if not passed
+        if not current_cart:
+            if "context" in globals() and hasattr(globals()["context"], "state") and getattr(globals()["context"], "state"):
+                current_cart = globals()["context"].state.get("cart") or {}
+            elif "get_variable" in globals():
+                current_cart = globals()["get_variable"]("cart") or {}
+
+        cart = None
+        if cart_service:
+            cart = cart_service.get_cart(session_id=sid, user_id=uid)
+
+        if not cart or not cart.get("items"):
+            if current_cart and isinstance(current_cart, dict) and current_cart.get("items"):
+                cart = current_cart
+            else:
+                tmp_carts = _load_tmp_carts()
+                if sid in tmp_carts and tmp_carts[sid].get("items"):
+                    cart = tmp_carts[sid]
+                elif uid and f"user_{uid}" in tmp_carts and tmp_carts[f"user_{uid}"].get("items"):
+                    cart = tmp_carts[f"user_{uid}"]
 
         if not cart:
             cart = {
@@ -63,12 +49,47 @@ def get_cart(session_id: str, user_id: str = "") -> Dict[str, Any]:
                 "total": 0.0
             }
 
+        # Direct CXAS runtime state mutation
+        if "context" in globals() and hasattr(globals()["context"], "state"):
+            globals()["context"].state["cart"] = cart
+        if "set_variable" in globals():
+            globals()["set_variable"]("cart", cart)
+
         return {
             "status": "success",
-            "cart": cart
+            "cart": cart,
+            "updatedVariables": {
+                "cart": cart
+            },
+            "updated_variables": {
+                "cart": cart
+            },
+            "variables": {
+                "cart": cart
+            },
+            "x-ces-session-context": {
+                "variables": {
+                    "cart": cart
+                }
+            }
         }
     except Exception as e:
         return {
             "status": "error",
-            "agent_action": "Could not retrieve cart for session " + str(session_id) + ": " + str(e)
+            "agent_action": f"Could not retrieve cart for session {session_id}: {str(e)}"
         }
+
+
+def _get_tmp_storage_file() -> str:
+    return os.path.join(tempfile.gettempdir(), "cxas_session_carts.json")
+
+
+def _load_tmp_carts() -> Dict[str, Dict[str, Any]]:
+    path = _get_tmp_storage_file()
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}

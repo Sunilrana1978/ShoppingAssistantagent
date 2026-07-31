@@ -23,6 +23,15 @@ from agents.ShoppingAssistant.after_tool_callbacks.after_tool_callbacks_01.pytho
 
 class TestMultiAgentSystem(unittest.TestCase):
 
+    def setUp(self):
+        cart_service._carts.clear()
+        cart_service._user_carts.clear()
+        if hasattr(cart_service, "file_path") and cart_service.file_path.exists():
+            try:
+                cart_service.file_path.unlink()
+            except Exception:
+                pass
+
     def test_user_and_discount_services(self):
         profile = user_service.get_user_profile("u_1029")
         self.assertEqual(profile["name"], "Alex")

@@ -1,4 +1,8 @@
+import os
 from typing import Any, Optional
+
+Tool = Any
+CallbackContext = Any
 
 try:
     from services.cart_service import cart_service
@@ -6,69 +10,146 @@ except ImportError:
     cart_service = None
 
 try:
-    from google.cloud.aiplatform.memory import MemoryBankServiceClient  # type: ignore
+    from google.cloud.aiplatform_v1beta1 import MemoryBankServiceClient  # type: ignore
     _MEMORY_BANK_AVAILABLE = True
 except ImportError:
-    _MEMORY_BANK_AVAILABLE = False
+    try:
+        from google.cloud.aiplatform.memory import MemoryBankServiceClient  # type: ignore
+        _MEMORY_BANK_AVAILABLE = True
+    except ImportError:
+        _MEMORY_BANK_AVAILABLE = False
 
-MEMORY_BANK_RESOURCE_NAME = "projects/ecom-cx-agent/locations/us-central1/memoryBanks/shopping-assistant-user-memory-bank"
+DEFAULT_REASONING_ENGINE_ID = "432575911913586688"
 
 
-def _save_live_memory(user_id: str, fact_text: str) -> None:
+def _save_live_memory(user_id: str, fact_text: str, project_id: str = "ecom-cx-agent", location: str = "us-central1") -> None:
     """Save a long-term fact to live Vertex AI Memory Bank if available."""
     if not _MEMORY_BANK_AVAILABLE or not user_id or user_id.lower() in ("guest", "u_guest"):
         return
     try:
-        client = MemoryBankServiceClient()
-        client.generate_and_save_memory(
-            parent=MEMORY_BANK_RESOURCE_NAME,
-            user_id=user_id,
-            text=fact_text,
-        )
+        endpoint = f"{location}-aiplatform.googleapis.com"
+        client = MemoryBankServiceClient(client_options={"api_endpoint": endpoint})
+        engine_id = os.getenv("REASONING_ENGINE_ID", DEFAULT_REASONING_ENGINE_ID)
+        parent = f"projects/{project_id}/locations/{location}/reasoningEngines/{engine_id}"
+        if hasattr(client, "generate_memories"):
+            client.generate_memories(
+                parent=parent,
+                user_id=user_id,
+                text_payload=fact_text,
+            )
+        elif hasattr(client, "generate_and_save_memory"):
+            client.generate_and_save_memory(
+                parent=parent,
+                user_id=user_id,
+                text=fact_text,
+            )
+        elif hasattr(client, "create_memory"):
+            client.create_memory(
+                parent=parent,
+                memory={"user_id": user_id, "fact": fact_text},
+            )
     except Exception:
         pass
 
 
+def get_session_id(callback_context: Any) -> str:
+    """Helper to extract active session ID from Agent Engine callback context."""
+    if not callback_context:
+        return ""
+    if hasattr(callback_context, "session_id") and getattr(callback_context, "session_id"):
+        return str(getattr(callback_context, "session_id"))
+    if hasattr(callback_context, "session"):
+        session = getattr(callback_context, "session")
+        if hasattr(session, "id") and getattr(session, "id"):
+            return str(getattr(session, "id"))
+        if hasattr(session, "session_id") and getattr(session, "session_id"):
+            return str(getattr(session, "session_id"))
+        if isinstance(session, dict):
+            return str(session.get("id") or session.get("session_id") or "")
+    if isinstance(callback_context, dict):
+        return str(callback_context.get("session_id") or callback_context.get("state", {}).get("session_id") or "")
+    return ""
+
+
 def get_state(callback_context: Any) -> dict:
     """Helper to retrieve state dict following CXAS Scrapi Design Guide standards."""
-    if hasattr(callback_context, "state") and isinstance(getattr(callback_context, "state"), dict):
-        return callback_context.state
-    if hasattr(callback_context, "variables") and isinstance(getattr(callback_context, "variables"), dict):
-        return callback_context.variables
+    if not callback_context:
+        return {}
     if isinstance(callback_context, dict):
-        if "state" in callback_context and isinstance(callback_context["state"], dict):
+        if "state" in callback_context and callback_context["state"] is not None:
             return callback_context["state"]
-        if "variables" in callback_context and isinstance(callback_context["variables"], dict):
+        if "variables" in callback_context and callback_context["variables"] is not None:
             return callback_context["variables"]
         return callback_context
+
+    if hasattr(callback_context, "state") and getattr(callback_context, "state") is not None:
+        return getattr(callback_context, "state")
+    if hasattr(callback_context, "variables") and getattr(callback_context, "variables") is not None:
+        return getattr(callback_context, "variables")
+    if hasattr(callback_context, "session"):
+        session = getattr(callback_context, "session")
+        if hasattr(session, "state") and getattr(session, "state") is not None:
+            return getattr(session, "state")
+        if hasattr(session, "variables") and getattr(session, "variables") is not None:
+            return getattr(session, "variables")
+        if hasattr(session, "parameters") and getattr(session, "parameters") is not None:
+            return getattr(session, "parameters")
     return {}
 
 
 def set_state_var(callback_context: Any, key: str, value: Any) -> None:
-    """Helper to write state variable across CXAS runtime and local test harnesses."""
+    """Helper to write state variable across all Python object/dict types in CXAS Agent Engine."""
+    if not callback_context:
+        return
+
+    def _set_on_target(target: Any):
+        if target is None:
+            return
+        if isinstance(target, dict):
+            target[key] = value
+            return
+        try:
+            target[key] = value
+        except Exception:
+            pass
+        try:
+            setattr(target, key, value)
+        except Exception:
+            pass
+        for method in ("set_variable", "set_session_variable", "set_parameter", "update_variable", "add_variable"):
+            if hasattr(target, method):
+                try:
+                    getattr(target, method)(key, value)
+                except Exception:
+                    pass
+
+    _set_on_target(callback_context)
+
     state = get_state(callback_context)
-    state[key] = value
-    if hasattr(callback_context, "state") and isinstance(getattr(callback_context, "state"), dict):
-        callback_context.state[key] = value
-    if hasattr(callback_context, "variables") and isinstance(getattr(callback_context, "variables"), dict):
-        callback_context.variables[key] = value
-    if isinstance(callback_context, dict):
-        if "state" in callback_context and isinstance(callback_context["state"], dict):
-            callback_context["state"][key] = value
-        if "variables" in callback_context and isinstance(callback_context["variables"], dict):
-            callback_context["variables"][key] = value
-        callback_context[key] = value
+    if state is not None and state is not callback_context:
+        _set_on_target(state)
+
+    for attr in ("state", "variables", "session_variables", "parameters"):
+        if hasattr(callback_context, attr):
+            _set_on_target(getattr(callback_context, attr))
+
+    if hasattr(callback_context, "session"):
+        session = getattr(callback_context, "session")
+        _set_on_target(session)
+        for attr in ("state", "variables", "session_variables", "parameters"):
+            if hasattr(session, attr):
+                _set_on_target(getattr(session, attr))
 
 
 def after_tool_callback(
-    tool: Any,
-    input: Any = None,
-    callback_context: Any = None,
-    tool_response: Any = None,
-) -> Optional[Any]:
+    tool: Tool,
+    input: dict[str, Any],
+    callback_context: CallbackContext,
+    tool_response: dict[str, Any],
+) -> Optional[dict[str, Any]]:
     """
-    Executes after a tool call finishes to update session variables
-    and recompute cart pricing.
+    Executes after a tool call finishes to update session variables,
+    recompute cart pricing, and commit state back to Agent Engine.
     """
     if tool_response is None and callback_context is not None:
         tool_name = str(tool)
@@ -80,9 +161,9 @@ def after_tool_callback(
         context_obj = callback_context if callback_context is not None else input
 
     state = get_state(context_obj)
-    session_id = state.get("session_id", "sess_default")
+    sid = get_session_id(context_obj) or state.get("session_id") or "sess_default"
     user_id = state.get("user_id", "")
-    discount_pct = float(state.get("discount_pct", 0))
+    discount_pct = float(state.get("discount_pct") or (tool_output.get("cart", {}).get("discount_pct") if isinstance(tool_output.get("cart"), dict) else 0) or 0)
 
     if tool_name in ("add_to_cart", "remove_from_cart", "get_cart"):
         cart = tool_output.get("cart") or state.get("cart")
@@ -96,6 +177,14 @@ def after_tool_callback(
             })
             set_state_var(context_obj, "cart", cart)
             tool_output["cart"] = cart
+            tool_output["updatedVariables"] = {"cart": cart}
+            tool_output["updated_variables"] = {"cart": cart}
+            tool_output["variables"] = {"cart": cart}
+            tool_output["x-ces-session-context"] = {
+                "variables": {
+                    "cart": cart
+                }
+            }
 
             # Save live memory fact to Vertex AI Memory Bank
             if user_id and tool_name == "add_to_cart" and cart.get("items"):
@@ -108,7 +197,7 @@ def after_tool_callback(
             new_pct = tool_output["discount_pct"]
             set_state_var(context_obj, "discount_pct", new_pct)
             if cart_service:
-                updated_cart = cart_service.update_cart_pricing(session_id, new_pct)
+                updated_cart = cart_service.update_cart_pricing(sid, new_pct)
                 set_state_var(context_obj, "cart", updated_cart)
             elif state.get("cart"):
                 cart = dict(state["cart"])

@@ -9,6 +9,14 @@
   <context>
     Current Date: {current_date}
   </context>
+  <state_visibility>
+    The following session variables are available in session state:
+    - Active Cart: {cart} ($session.variables.cart)
+    - Cart Items: {cart.items}
+    - Subtotal: {cart.subtotal}
+    - Discount Amount: {cart.discount_amount}
+    - Grand Total: {cart.total}
+  </state_visibility>
   <taskflow>
     <step name="Initialize Member Session">
       1. Call {@TOOL: get_user_profile} with parameter user_id from context variable {user_id}.

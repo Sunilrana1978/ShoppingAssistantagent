@@ -52,9 +52,9 @@ def run_evaluations():
             # 1. Initialize User Profile and Discount
             profile = user_service.get_user_profile(user_id)
             if profile:
-                after_tool_callback("get_user_profile", profile, context)
+                after_tool_callback("get_user_profile", {}, context, profile)
                 discount = discount_service.get_discount_percentage(profile.get("membership_tier", "none"))
-                after_tool_callback("get_discount", {"discount_pct": discount}, context)
+                after_tool_callback("get_discount", {}, context, {"discount_pct": discount})
                 state = context["state"]
                 print(
                     f"   Profile: Name='{state.get('user_name')}', Tier='{state.get('membership_tier')}', Discount={state.get('discount_pct')}%"
@@ -71,18 +71,18 @@ def run_evaluations():
                 # Simulate scenario steps for guest vs gold user
                 if user_id == "guest":
                     cart = cart_service.add_item(session_id=context["state"]["session_id"], sku="sku_1031", qty=1, size="M")
-                    after_tool_callback("add_to_cart", {"cart": cart}, context)
+                    after_tool_callback("add_to_cart", {}, context, {"cart": cart})
                     assert context["state"]["cart"]["subtotal"] == 89.99
                     assert context["state"]["cart"]["total"] == 89.99
                 elif "multi_agent" in tc_id or "tc_08" in tc_id:
                     cart = cart_service.add_item(session_id=context["state"]["session_id"], sku="sku_1032", qty=1, size="4 3/8")
-                    after_tool_callback("add_to_cart", {"cart": cart}, context)
+                    after_tool_callback("add_to_cart", {}, context, {"cart": cart})
                     res = feedback_service.submit_feedback(user_id, 5, "Excellent racket recommendation and seamless cart experience!")
-                    after_tool_callback("submit_feedback", res, context)
+                    after_tool_callback("submit_feedback", {}, context, res)
                     assert context["state"].get("feedback_submitted") is True
                 else:
                     cart = cart_service.add_item(session_id=context["state"]["session_id"], sku="sku_1029", qty=1, size=10)
-                    after_tool_callback("add_to_cart", {"cart": cart}, context)
+                    after_tool_callback("add_to_cart", {}, context, {"cart": cart})
                     assert context["state"]["cart"]["discount_amount"] == 19.50
 
             else:
