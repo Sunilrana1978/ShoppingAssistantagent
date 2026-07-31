@@ -70,6 +70,12 @@ def remove_from_cart(session_id: str = "", sku: str = "", discount_pct: float = 
             except Exception:
                 pass
 
+        # Direct CXAS runtime state mutation
+        if "context" in globals() and hasattr(globals()["context"], "state"):
+            globals()["context"].state["cart"] = cart
+        if "set_variable" in globals():
+            globals()["set_variable"]("cart", cart)
+
         return {
             "status": "success",
             "removed_sku": sku,

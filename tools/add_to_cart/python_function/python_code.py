@@ -63,6 +63,13 @@ def add_to_cart(
         sid = str(session_id or "sess_default").strip()
         uid = str(user_id or "").strip()
 
+        # Read current cart from context.state if provided
+        if current_cart is None:
+            if "context" in globals() and hasattr(globals()["context"], "state") and getattr(globals()["context"], "state"):
+                current_cart = globals()["context"].state.get("cart")
+            elif "get_variable" in globals():
+                current_cart = globals()["get_variable"]("cart")
+
         if cart_service:
             cart = cart_service.add_item(session_id=sid, sku=sku, qty=qty, size=size, user_id=uid)
             if discount_pct > 0:
@@ -133,6 +140,12 @@ def add_to_cart(
             if uid:
                 tmp_carts[f"user_{uid}"] = cart
             cart = _save_tmp_carts(tmp_carts, target_sid=sid, target_uid=uid) or cart
+
+        # Direct CXAS runtime state mutation
+        if "context" in globals() and hasattr(globals()["context"], "state"):
+            globals()["context"].state["cart"] = cart
+        if "set_variable" in globals():
+            globals()["set_variable"]("cart", cart)
 
         return {
             "status": "success",

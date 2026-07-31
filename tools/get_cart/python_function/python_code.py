@@ -9,13 +9,20 @@ except ImportError:
     cart_service = None
 
 
-def get_cart(session_id: str = "", user_id: str = "", current_cart: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def get_cart(session_id: str = "", user_id: str = "", current_cart: Dict[str, Any] = {}) -> Dict[str, Any]:
     """
     Get active cart details for a session or user via cart_service or fallback state.
     """
     try:
         sid = str(session_id or "sess_default").strip()
         uid = str(user_id or "").strip()
+
+        # Read current cart from context.state if not passed
+        if not current_cart:
+            if "context" in globals() and hasattr(globals()["context"], "state") and getattr(globals()["context"], "state"):
+                current_cart = globals()["context"].state.get("cart") or {}
+            elif "get_variable" in globals():
+                current_cart = globals()["get_variable"]("cart") or {}
 
         cart = None
         if cart_service:
@@ -41,6 +48,12 @@ def get_cart(session_id: str = "", user_id: str = "", current_cart: Optional[Dic
                 "discount_amount": 0.0,
                 "total": 0.0
             }
+
+        # Direct CXAS runtime state mutation
+        if "context" in globals() and hasattr(globals()["context"], "state"):
+            globals()["context"].state["cart"] = cart
+        if "set_variable" in globals():
+            globals()["set_variable"]("cart", cart)
 
         return {
             "status": "success",

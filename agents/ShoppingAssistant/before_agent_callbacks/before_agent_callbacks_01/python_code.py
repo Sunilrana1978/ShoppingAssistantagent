@@ -11,33 +11,65 @@ except ImportError:
 
 def get_state(callback_context: Any) -> dict:
     """Helper to retrieve state dict following CXAS Scrapi Design Guide standards."""
-    if hasattr(callback_context, "state") and isinstance(getattr(callback_context, "state"), dict):
-        return callback_context.state
-    if hasattr(callback_context, "variables") and isinstance(getattr(callback_context, "variables"), dict):
-        return callback_context.variables
+    if not callback_context:
+        return {}
     if isinstance(callback_context, dict):
-        if "state" in callback_context and isinstance(callback_context["state"], dict):
+        if "state" in callback_context and callback_context["state"] is not None:
             return callback_context["state"]
-        if "variables" in callback_context and isinstance(callback_context["variables"], dict):
+        if "variables" in callback_context and callback_context["variables"] is not None:
             return callback_context["variables"]
         return callback_context
+
+    if hasattr(callback_context, "state") and getattr(callback_context, "state") is not None:
+        return getattr(callback_context, "state")
+    if hasattr(callback_context, "variables") and getattr(callback_context, "variables") is not None:
+        return getattr(callback_context, "variables")
+    if hasattr(callback_context, "session"):
+        session = getattr(callback_context, "session")
+        if hasattr(session, "state") and getattr(session, "state") is not None:
+            return getattr(session, "state")
+        if hasattr(session, "variables") and getattr(session, "variables") is not None:
+            return getattr(session, "variables")
+        if hasattr(session, "parameters") and getattr(session, "parameters") is not None:
+            return getattr(session, "parameters")
     return {}
 
 
 def set_state_var(callback_context: Any, key: str, value: Any) -> None:
-    """Helper to write state variable across CXAS runtime and local test harnesses."""
+    """Helper to write state variable across all Python object/dict types in CXAS Agent Engine."""
+    if not callback_context:
+        return
+
+    def _set_on_target(target: Any):
+        if target is None:
+            return
+        if isinstance(target, dict):
+            target[key] = value
+            return
+        try:
+            target[key] = value
+        except Exception:
+            pass
+        try:
+            setattr(target, key, value)
+        except Exception:
+            pass
+        for method in ("set_variable", "set_session_variable", "set_parameter", "update_variable", "add_variable"):
+            if hasattr(target, method):
+                try:
+                    getattr(target, method)(key, value)
+                except Exception:
+                    pass
+
+    _set_on_target(callback_context)
+
     state = get_state(callback_context)
-    state[key] = value
-    if hasattr(callback_context, "state") and isinstance(getattr(callback_context, "state"), dict):
-        callback_context.state[key] = value
-    if hasattr(callback_context, "variables") and isinstance(getattr(callback_context, "variables"), dict):
-        callback_context.variables[key] = value
-    if isinstance(callback_context, dict):
-        if "state" in callback_context and isinstance(callback_context["state"], dict):
-            callback_context["state"][key] = value
-        if "variables" in callback_context and isinstance(callback_context["variables"], dict):
-            callback_context["variables"][key] = value
-        callback_context[key] = value
+    if state is not None and state is not callback_context:
+        _set_on_target(state)
+
+    for attr in ("state", "variables", "session_variables", "parameters"):
+        if hasattr(callback_context, attr):
+            _set_on_target(getattr(callback_context, attr))
 
 
 def before_agent_callback(callback_context: CallbackContext) -> Optional[Content]:
