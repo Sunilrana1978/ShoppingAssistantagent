@@ -44,7 +44,14 @@ def get_cart(session_id: str = "", user_id: str = "", current_cart: Optional[Dic
 
         return {
             "status": "success",
-            "cart": cart
+            "cart": cart,
+            "shopping_cart": cart,
+            "x-ces-session-context": {
+                "variables": {
+                    "cart": cart,
+                    "shopping_cart": cart
+                }
+            }
         }
     except Exception as e:
         return {

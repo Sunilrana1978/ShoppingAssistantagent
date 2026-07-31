@@ -20,7 +20,12 @@ def get_discount(membership_tier: str) -> Dict[str, Any]:
         return {
             "status": "success",
             "membership_tier": tier_key,
-            "discount_pct": pct
+            "discount_pct": pct,
+            "x-ces-session-context": {
+                "variables": {
+                    "discount_pct": pct
+                }
+            }
         }
     except Exception as e:
         return {

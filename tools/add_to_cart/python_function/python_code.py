@@ -128,7 +128,14 @@ def add_to_cart(
                 "qty": qty,
                 "size": size
             },
-            "cart": cart
+            "cart": cart,
+            "shopping_cart": cart,
+            "x-ces-session-context": {
+                "variables": {
+                    "cart": cart,
+                    "shopping_cart": cart
+                }
+            }
         }
     except Exception as e:
         return {

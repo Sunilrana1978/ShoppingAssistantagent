@@ -73,7 +73,14 @@ def remove_from_cart(session_id: str = "", sku: str = "", discount_pct: float = 
         return {
             "status": "success",
             "removed_sku": sku,
-            "cart": cart
+            "cart": cart,
+            "shopping_cart": cart,
+            "x-ces-session-context": {
+                "variables": {
+                    "cart": cart,
+                    "shopping_cart": cart
+                }
+            }
         }
     except Exception as e:
         return {
