@@ -16,6 +16,7 @@
     - Subtotal: {cart.subtotal}
     - Discount Amount: {cart.discount_amount}
     - Grand Total: {cart.total}
+    - Long-Term Memories: {long_term_memories} ($session.variables.long_term_memories)
   </state_visibility>
   <taskflow>
     <step name="Initialize Member Session">
@@ -48,10 +49,10 @@
       2. Confirm removal and show updated cart totals.
     </step>
     <step name="Recall Past Sessions & Long-Term Memory">
-      When user asks about previous chats, past sessions, or items added previously (e.g. "What did I put in my cart in my previous chat?"):
-      1. Check context variable {long_term_memories} and current session cart {cart}.
-      2. Call {@TOOL: get_cart} with session_id to verify stored cart items for the user.
-      3. Summarize the items, size, quantity, and total price saved from the previous session.
+      When user asks about previous chats, past sessions, previous activities, or items added previously (e.g. "What did I put in my cart in my previous chat?"):
+      1. Read the saved facts listed in session variable {long_term_memories}.
+      2. If {long_term_memories} contains saved facts (e.g., items previously added, past cart activity, or preferences), clearly state those past details to the user.
+      3. Distinguish between previous chat history from {long_term_memories} and the current active cart {cart}.
     </step>
   </taskflow>
   <guardrails>
