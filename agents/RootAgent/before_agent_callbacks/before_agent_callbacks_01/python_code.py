@@ -173,57 +173,26 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[Content
             profile = user_service.get_user_profile(user_id)
         else:
             mock_users = {
-                "u_1029": {
-                    "name": "Alex",
-                    "membership_tier": "gold",
-                    "memories": ["User Alex previously added TrailBlaze Pro Trail Runner (size 10, qty 1) to cart for $110.49."],
-                    "previous_cart": {
-                        "session_id": "sess_previous",
-                        "user_id": "u_1029",
-                        "items": [{"sku": "sku_1029", "name": "TrailBlaze Pro Trail Runner", "qty": 1, "size": "10", "unit_price": 129.99}],
-                        "subtotal": 129.99,
-                        "discount_pct": 15.0,
-                        "discount_amount": 19.50,
-                        "total": 110.49
-                    }
-                },
-                "u_1030": {
-                    "name": "Jordan",
-                    "membership_tier": "silver",
-                    "memories": ["User Jordan previously added Apex Aero Road Running Shoes (size 10, qty 1) to cart for $134.99."],
-                    "previous_cart": {
-                        "session_id": "sess_previous",
-                        "user_id": "u_1030",
-                        "items": [{"sku": "sku_1030", "name": "Apex Aero Road Running Shoes", "qty": 1, "size": "10", "unit_price": 149.99}],
-                        "subtotal": 149.99,
-                        "discount_pct": 10.0,
-                        "discount_amount": 15.00,
-                        "total": 134.99
-                    }
-                },
-                "u_1031": {"name": "Taylor", "membership_tier": "bronze", "memories": [], "previous_cart": {}},
+                "u_1029": {"name": "Alex", "membership_tier": "gold"},
+                "u_1030": {"name": "Jordan", "membership_tier": "silver"},
+                "u_1031": {"name": "Taylor", "membership_tier": "bronze"},
             }
             profile = mock_users.get(
                 user_id,
-                {"name": user_id.capitalize(), "membership_tier": "none", "memories": [], "previous_cart": {}},
+                {"name": user_id.capitalize(), "membership_tier": "none"},
             )
 
         name = profile.get("user_name") or profile.get("name", "Shopper")
         tier = profile.get("membership_tier", "none")
-        profile_memories = profile.get("memories", [])
-        previous_cart = profile.get("previous_cart", {})
 
         set_state_var(callback_context, "user_id", user_id)
         set_state_var(callback_context, "user_name", name)
         set_state_var(callback_context, "membership_tier", tier)
 
         # ----------------------------------------------------------------
-        # 3. Retrieve Vertex AI Memory Bank + Profile Memories
+        # 3. Retrieve Vertex AI Memory Bank
         # ----------------------------------------------------------------
         memories = _retrieve_memories(user_id)
-        for m in profile_memories:
-            if m not in memories:
-                memories.append(m)
 
         # ----------------------------------------------------------------
         # 4. Cross-Session Cart Persistence & Memory Synthesis
@@ -237,13 +206,6 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[Content
             if restored_cart and restored_cart.get("items"):
                 cart = restored_cart
                 set_state_var(callback_context, "cart", cart)
-
-        # Include previous session cart in long-term memory facts (without polluting active cart)
-        if previous_cart and previous_cart.get("items"):
-            prev_items = [f"{i.get('name')} (size {i.get('size')}, qty {i.get('qty')})" for i in previous_cart["items"]]
-            memory_fact = f"User previously had items in cart in past chat: {', '.join(prev_items)} with Total ${previous_cart.get('total')}."
-            if memory_fact not in memories:
-                memories.append(memory_fact)
 
         set_state_var(callback_context, "long_term_memories", memories)
 

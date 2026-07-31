@@ -4,66 +4,22 @@ MOCK_USERS = {
     "u_1029": {
         "user_id": "u_1029",
         "name": "Alex",
-        "membership_tier": "gold",
-        "memories": [
-            "User Alex previously added TrailBlaze Pro Trail Runner (size 10, qty 1) to cart for $110.49."
-        ],
-        "previous_cart": {
-          "session_id": "sess_previous",
-          "user_id": "u_1029",
-          "items": [
-            {
-              "sku": "sku_1029",
-              "name": "TrailBlaze Pro Trail Runner",
-              "qty": 1,
-              "size": "10",
-              "unit_price": 129.99
-            }
-          ],
-          "subtotal": 129.99,
-          "discount_pct": 15.0,
-          "discount_amount": 19.50,
-          "total": 110.49
-        }
+        "membership_tier": "gold"
     },
     "u_1030": {
         "user_id": "u_1030",
         "name": "Jordan",
-        "membership_tier": "silver",
-        "memories": [
-            "User Jordan previously added Apex Aero Road Running Shoes (size 10, qty 1) to cart for $134.99."
-        ],
-        "previous_cart": {
-          "session_id": "sess_previous",
-          "user_id": "u_1030",
-          "items": [
-            {
-              "sku": "sku_1030",
-              "name": "Apex Aero Road Running Shoes",
-              "qty": 1,
-              "size": "10",
-              "unit_price": 149.99
-            }
-          ],
-          "subtotal": 149.99,
-          "discount_pct": 10.0,
-          "discount_amount": 15.00,
-          "total": 134.99
-        }
+        "membership_tier": "silver"
     },
     "u_1031": {
         "user_id": "u_1031",
         "name": "Taylor",
-        "membership_tier": "bronze",
-        "memories": [],
-        "previous_cart": {}
+        "membership_tier": "bronze"
     },
     "guest": {
         "user_id": "guest",
         "name": "Guest Customer",
-        "membership_tier": "none",
-        "memories": [],
-        "previous_cart": {}
+        "membership_tier": "none"
     }
 }
 
@@ -71,7 +27,7 @@ def get_user_profile(user_id: str) -> Dict[str, Any]:
     """
     Look up user profile by user_id.
 
-    Returns dict containing user_id, user_name, membership_tier, memories, and previous_cart.
+    Returns dict containing user_id, user_name, and membership_tier.
     """
     try:
         if isinstance(user_id, str):
@@ -92,9 +48,7 @@ def get_user_profile(user_id: str) -> Dict[str, Any]:
             "status": "success",
             "user_id": profile["user_id"],
             "user_name": profile["name"],
-            "membership_tier": profile["membership_tier"],
-            "memories": profile.get("memories", []),
-            "previous_cart": profile.get("previous_cart", {})
+            "membership_tier": profile["membership_tier"]
         }
     except Exception as e:
         return {
