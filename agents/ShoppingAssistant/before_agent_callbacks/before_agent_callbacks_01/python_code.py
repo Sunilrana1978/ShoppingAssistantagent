@@ -1,5 +1,8 @@
 from typing import Any, Optional
 
+CallbackContext = Any
+Content = Any
+
 try:
     from services.user_service import user_service
 except ImportError:
@@ -37,7 +40,7 @@ def set_state_var(callback_context: Any, key: str, value: Any) -> None:
         callback_context[key] = value
 
 
-def before_agent_callback(callback_context: Any) -> Optional[Any]:
+def before_agent_callback(callback_context: CallbackContext) -> Optional[Content]:
     """
     Executes at the beginning of each agent turn.
     Reads user_id from session state (or session parameter), looks up profile,

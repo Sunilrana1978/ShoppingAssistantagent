@@ -1,5 +1,8 @@
 from typing import Any, Optional, Dict, List
 
+CallbackContext = Any
+LlmResponse = Any
+
 
 def get_state(callback_context: Any) -> dict:
     """Helper to retrieve state dict following CXAS Scrapi Design Guide standards."""
@@ -17,9 +20,9 @@ def get_state(callback_context: Any) -> dict:
 
 
 def after_model_callback(
-    callback_context: Any,
-    llm_response: Any,
-) -> Optional[Any]:
+    callback_context: CallbackContext,
+    llm_response: LlmResponse,
+) -> Optional[LlmResponse]:
     """
     Executes after the LLM responds to attach rich UI widget payloads
     (product cards, etc.) to the model response.

@@ -1,5 +1,8 @@
 from typing import Any, Optional
 
+Tool = Any
+CallbackContext = Any
+
 
 def get_state(callback_context: Any) -> dict:
     """Helper to retrieve state dict following CXAS Scrapi Design Guide standards."""
@@ -17,10 +20,10 @@ def get_state(callback_context: Any) -> dict:
 
 
 def before_tool_callback(
-    tool: Any,
-    input: dict,
-    callback_context: Any,
-) -> Optional[Any]:
+    tool: Tool,
+    input: dict[str, Any],
+    callback_context: CallbackContext,
+) -> Optional[dict[str, Any]]:
     """
     Executes before a tool runs to sanitize and validate input arguments.
     """
@@ -30,6 +33,15 @@ def before_tool_callback(
 
         if "session_id" not in input and state.get("session_id"):
             input["session_id"] = state.get("session_id")
+
+        if tool_name in ("add_to_cart", "remove_from_cart", "get_cart"):
+            if "current_cart" not in input and state.get("cart"):
+                input["current_cart"] = state.get("cart")
+            if ("discount_pct" not in input or not input.get("discount_pct")) and state.get("discount_pct"):
+                try:
+                    input["discount_pct"] = float(state.get("discount_pct"))
+                except (ValueError, TypeError):
+                    pass
 
         if tool_name == "search_catalog":
             if input.get("price_max") is not None:

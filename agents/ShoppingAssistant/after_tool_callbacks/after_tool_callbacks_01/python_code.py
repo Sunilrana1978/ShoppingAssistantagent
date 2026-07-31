@@ -1,5 +1,8 @@
 from typing import Any, Optional
 
+Tool = Any
+CallbackContext = Any
+
 try:
     from services.cart_service import cart_service
 except ImportError:
@@ -82,11 +85,11 @@ def set_state_var(callback_context: Any, key: str, value: Any) -> None:
 
 
 def after_tool_callback(
-    tool: Any,
-    input: Any = None,
-    callback_context: Any = None,
-    tool_response: Any = None,
-) -> Optional[Any]:
+    tool: Tool,
+    input: dict[str, Any],
+    callback_context: CallbackContext,
+    tool_response: dict[str, Any],
+) -> Optional[dict[str, Any]]:
     """
     Executes after a tool call finishes to update session variables
     and recompute cart pricing.
@@ -101,9 +104,11 @@ def after_tool_callback(
         context_obj = callback_context if callback_context is not None else input
 
     state = get_state(context_obj)
-    session_id = state.get("session_id", "sess_default")
+    # Guard: session_id may arrive as {} (empty object) if not declared as a string variable.
+    raw_session_id = state.get("session_id", "sess_default")
+    session_id = str(raw_session_id).strip() if raw_session_id and not isinstance(raw_session_id, dict) else "sess_default"
     user_id = state.get("user_id", "")
-    discount_pct = float(state.get("discount_pct", 0))
+    discount_pct = float(state.get("discount_pct") or (tool_output.get("cart", {}).get("discount_pct") if isinstance(tool_output.get("cart"), dict) else 0) or 0)
 
     if tool_name in ("add_to_cart", "remove_from_cart", "get_cart"):
         cart = tool_output.get("cart") or state.get("cart")
@@ -116,6 +121,12 @@ def after_tool_callback(
                 "total": round(subtotal - disc_amt, 2),
             })
             set_state_var(context_obj, "cart", cart)
+            # Also write via session.set_parameter for CXAS runtimes that need it
+            try:
+                if hasattr(context_obj, "session") and hasattr(context_obj.session, "set_parameter"):
+                    context_obj.session.set_parameter("cart", cart)
+            except Exception:
+                pass
             tool_output["cart"] = cart
 
             # Save live memory fact to Vertex AI Memory Bank

@@ -1,6 +1,9 @@
 from typing import Any, Optional
 import json
 
+CallbackContext = Any
+Content = Any
+
 try:
     from services.user_service import user_service
 except ImportError:
@@ -88,7 +91,7 @@ def _retrieve_memories(user_id: str, project_id: str = "ecom-cx-agent", location
         return []
 
 
-def before_agent_callback(callback_context: Any) -> Optional[Any]:
+def before_agent_callback(callback_context: CallbackContext) -> Optional[Content]:
     """
     Executes at the beginning of each agent turn (RootAgent).
 

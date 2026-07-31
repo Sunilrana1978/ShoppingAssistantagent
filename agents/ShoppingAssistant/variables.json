@@ -26,6 +26,10 @@
     "cart": {
       "type": "object",
       "description": "Current cart state containing items, subtotal, discount, and total."
+    },
+    "session_id": {
+      "type": "string",
+      "description": "Unique session identifier used to key the cart in cart_service."
     }
   }
 }

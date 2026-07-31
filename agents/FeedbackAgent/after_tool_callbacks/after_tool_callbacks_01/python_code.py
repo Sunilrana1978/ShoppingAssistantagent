@@ -1,4 +1,7 @@
-from typing import Any, Optional
+from typing import Any, Optional, Dict, List
+
+Tool = Any
+CallbackContext = Any
 
 
 def get_state(callback_context: Any) -> dict:
@@ -33,11 +36,11 @@ def set_state_var(callback_context: Any, key: str, value: Any) -> None:
 
 
 def after_tool_callback(
-    tool: Any,
-    input: Any = None,
-    callback_context: Any = None,
-    tool_response: Any = None,
-) -> Optional[Any]:
+    tool: Tool,
+    input: dict[str, Any],
+    callback_context: CallbackContext,
+    tool_response: dict[str, Any],
+) -> Optional[dict[str, Any]]:
     """
     Executes after a tool call finishes to update session variables.
     """
