@@ -142,6 +142,15 @@ def add_to_cart(
                 "size": size
             },
             "cart": cart,
+            "updatedVariables": {
+                "cart": cart
+            },
+            "updated_variables": {
+                "cart": cart
+            },
+            "variables": {
+                "cart": cart
+            },
             "x-ces-session-context": {
                 "variables": {
                     "cart": cart

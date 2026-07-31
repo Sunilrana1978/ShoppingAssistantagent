@@ -121,29 +121,24 @@ def set_state_var(callback_context: Any, key: str, value: Any) -> None:
             setattr(target, key, value)
         except Exception:
             pass
-        if hasattr(target, "set_parameter"):
-            try:
-                target.set_parameter(key, value)
-            except Exception:
-                pass
+        for method in ("set_variable", "set_session_variable", "set_parameter", "update_variable", "add_variable"):
+            if hasattr(target, method):
+                try:
+                    getattr(target, method)(key, value)
+                except Exception:
+                    pass
 
     _apply(callback_context)
-    if hasattr(callback_context, "state"):
-        _apply(getattr(callback_context, "state"))
-    if hasattr(callback_context, "variables"):
-        _apply(getattr(callback_context, "variables"))
+    for attr in ("state", "variables", "session_variables", "parameters"):
+        if hasattr(callback_context, attr):
+            _apply(getattr(callback_context, attr))
+
     if hasattr(callback_context, "session"):
         session = getattr(callback_context, "session")
         _apply(session)
-        if hasattr(session, "state"):
-            _apply(getattr(session, "state"))
-        if hasattr(session, "variables"):
-            _apply(getattr(session, "variables"))
-        if hasattr(session, "set_parameter"):
-            try:
-                session.set_parameter(key, value)
-            except Exception:
-                pass
+        for attr in ("state", "variables", "session_variables", "parameters"):
+            if hasattr(session, attr):
+                _apply(getattr(session, attr))
 
 
 def after_tool_callback(
@@ -182,6 +177,9 @@ def after_tool_callback(
             })
             set_state_var(context_obj, "cart", cart)
             tool_output["cart"] = cart
+            tool_output["updatedVariables"] = {"cart": cart}
+            tool_output["updated_variables"] = {"cart": cart}
+            tool_output["variables"] = {"cart": cart}
             tool_output["x-ces-session-context"] = {
                 "variables": {
                     "cart": cart

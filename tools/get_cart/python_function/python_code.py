@@ -45,6 +45,15 @@ def get_cart(session_id: str = "", user_id: str = "", current_cart: Optional[Dic
         return {
             "status": "success",
             "cart": cart,
+            "updatedVariables": {
+                "cart": cart
+            },
+            "updated_variables": {
+                "cart": cart
+            },
+            "variables": {
+                "cart": cart
+            },
             "x-ces-session-context": {
                 "variables": {
                     "cart": cart
