@@ -54,7 +54,7 @@ class MockCartService(ICartService):
             return cart
 
         # Fallback to latest active cart in memory/disk if sid is default/empty
-        if self._carts:
+        if (not session_id or session_id == "sess_default") and self._carts:
             latest_cart = list(self._carts.values())[-1]
             return latest_cart
 

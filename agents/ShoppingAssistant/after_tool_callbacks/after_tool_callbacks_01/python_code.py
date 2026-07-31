@@ -86,9 +86,9 @@ def set_state_var(callback_context: Any, key: str, value: Any) -> None:
 
 def after_tool_callback(
     tool: Tool,
-    input: dict[str, Any],
-    callback_context: CallbackContext,
-    tool_response: dict[str, Any],
+    input: dict[str, Any] = None,
+    callback_context: CallbackContext = None,
+    tool_response: Optional[dict[str, Any]] = None,
 ) -> Optional[dict[str, Any]]:
     """
     Executes after a tool call finishes to update session variables
