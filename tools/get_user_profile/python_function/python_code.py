@@ -77,6 +77,17 @@ def get_user_profile(user_id: str) -> Dict[str, Any]:
         if isinstance(user_id, str):
             user_id = user_id.strip('"').strip("'").strip()
         profile = MOCK_USERS.get(user_id, MOCK_USERS["guest"])
+
+        # Direct CXAS runtime state mutation
+        if "context" in globals() and hasattr(globals()["context"], "state"):
+            globals()["context"].state["user_id"] = profile["user_id"]
+            globals()["context"].state["user_name"] = profile["name"]
+            globals()["context"].state["membership_tier"] = profile["membership_tier"]
+        if "set_variable" in globals():
+            globals()["set_variable"]("user_id", profile["user_id"])
+            globals()["set_variable"]("user_name", profile["name"])
+            globals()["set_variable"]("membership_tier", profile["membership_tier"])
+
         return {
             "status": "success",
             "user_id": profile["user_id"],

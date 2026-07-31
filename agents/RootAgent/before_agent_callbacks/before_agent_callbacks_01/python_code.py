@@ -113,16 +113,21 @@ def _retrieve_memories(user_id: str, project_id: str = "ecom-cx-agent", location
         client = MemoryBankServiceClient(client_options={"api_endpoint": endpoint})
         engine_id = os.getenv("REASONING_ENGINE_ID", "432575911913586688")
         parent = f"projects/{project_id}/locations/{location}/reasoningEngines/{engine_id}"
-        response = client.retrieve_memories(
-            parent=parent,
-            user_id=user_id,
-            max_results=5,
-        )
+        
+        req = {"parent": parent, "scope": {"user_id": user_id}}
+        response = client.retrieve_memories(request=req)
+        
         memories = []
-        if hasattr(response, "memories") and response.memories:
+        if hasattr(response, "retrieved_memories") and response.retrieved_memories:
+            for item in response.retrieved_memories:
+                m = getattr(item, "memory", item)
+                fact = getattr(m, "fact", "") or getattr(m, "text", "") or str(m)
+                if fact and fact not in memories:
+                    memories.append(fact)
+        elif hasattr(response, "memories") and response.memories:
             for m in response.memories:
-                fact = getattr(m, "fact", None) or getattr(m, "text", None) or str(m)
-                if fact:
+                fact = getattr(m, "fact", "") or getattr(m, "text", "") or str(m)
+                if fact and fact not in memories:
                     memories.append(fact)
         return memories
     except Exception:
@@ -158,7 +163,7 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[Content
         if not user_id or user_id.lower() in ("guest", "u_guest"):
             if not state.get("user_name"):
                 set_state_var(callback_context, "user_name", "Shopper")
-            set_state_var(callback_context, "long_term_memories", "[]")
+            set_state_var(callback_context, "long_term_memories", [])
             return None
 
         # ----------------------------------------------------------------
@@ -240,7 +245,7 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[Content
             if memory_fact not in memories:
                 memories.append(memory_fact)
 
-        set_state_var(callback_context, "long_term_memories", json.dumps(memories))
+        set_state_var(callback_context, "long_term_memories", memories)
 
     except Exception:
         pass

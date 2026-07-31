@@ -31,23 +31,12 @@ def _save_live_memory(user_id: str, fact_text: str, project_id: str = "ecom-cx-a
         client = MemoryBankServiceClient(client_options={"api_endpoint": endpoint})
         engine_id = os.getenv("REASONING_ENGINE_ID", DEFAULT_REASONING_ENGINE_ID)
         parent = f"projects/{project_id}/locations/{location}/reasoningEngines/{engine_id}"
-        if hasattr(client, "generate_memories"):
-            client.generate_memories(
-                parent=parent,
-                user_id=user_id,
-                text_payload=fact_text,
-            )
-        elif hasattr(client, "generate_and_save_memory"):
-            client.generate_and_save_memory(
-                parent=parent,
-                user_id=user_id,
-                text=fact_text,
-            )
-        elif hasattr(client, "create_memory"):
-            client.create_memory(
-                parent=parent,
-                memory={"user_id": user_id, "fact": fact_text},
-            )
+        
+        memory_payload = {
+            "fact": fact_text,
+            "scope": {"user_id": user_id}
+        }
+        client.create_memory(parent=parent, memory=memory_payload)
     except Exception:
         pass
 
@@ -162,7 +151,7 @@ def after_tool_callback(
 
     state = get_state(context_obj)
     sid = get_session_id(context_obj) or state.get("session_id") or "sess_default"
-    user_id = state.get("user_id", "")
+    user_id = tool_output.get("user_id") or state.get("user_id", "")
     discount_pct = float(state.get("discount_pct") or (tool_output.get("cart", {}).get("discount_pct") if isinstance(tool_output.get("cart"), dict) else 0) or 0)
 
     if tool_name in ("add_to_cart", "remove_from_cart", "get_cart"):
@@ -211,9 +200,24 @@ def after_tool_callback(
                 set_state_var(context_obj, "cart", cart)
 
     elif tool_name == "get_user_profile":
+        uid = tool_output.get("user_id") or user_id
         name = tool_output.get("user_name") or tool_output.get("name") or "Shopper"
+        tier = tool_output.get("membership_tier", "none")
+        if uid:
+            set_state_var(context_obj, "user_id", uid)
         set_state_var(context_obj, "user_name", name)
-        set_state_var(context_obj, "membership_tier", tool_output.get("membership_tier", "none"))
+        set_state_var(context_obj, "membership_tier", tier)
+
+        # Restore long term memories for newly resolved user_id
+        if uid and uid.lower() not in ("guest", "u_guest"):
+            memories = tool_output.get("memories", [])
+            prev_cart = tool_output.get("previous_cart", {})
+            if prev_cart and prev_cart.get("items"):
+                prev_items = [f"{i.get('name')} (size {i.get('size')}, qty {i.get('qty')})" for i in prev_cart["items"]]
+                fact = f"User previously had items in cart in past chat: {', '.join(prev_items)} with Total ${prev_cart.get('total')}."
+                if fact not in memories:
+                    memories.append(fact)
+            set_state_var(context_obj, "long_term_memories", memories)
 
     elif tool_name == "search_catalog":
         if "products" in tool_output:
