@@ -1,0 +1,31 @@
+{
+  "carts": {
+    "test_sess_001": {
+      "session_id": "test_sess_001",
+      "user_id": "",
+      "items": [
+        {
+          "sku": "sku_1029",
+          "name": "TrailBlaze Pro Trail Runner",
+          "qty": 1,
+          "size": 10,
+          "unit_price": 129.99,
+          "image_url": "https://images.unsplash.com/photo-1542291026-7eec264c27ff"
+        },
+        {
+          "sku": "sku_1029",
+          "name": "TrailBlaze Pro Trail Runner",
+          "qty": 1,
+          "size": "10",
+          "unit_price": 129.99,
+          "image_url": "https://images.unsplash.com/photo-1542291026-7eec264c27ff"
+        }
+      ],
+      "subtotal": 259.98,
+      "discount_pct": 15,
+      "discount_amount": 39.0,
+      "total": 220.98
+    }
+  },
+  "user_carts": {}
+}
