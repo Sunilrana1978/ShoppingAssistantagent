@@ -129,11 +129,9 @@ def add_to_cart(
                 "size": size
             },
             "cart": cart,
-            "shopping_cart": cart,
             "x-ces-session-context": {
                 "variables": {
-                    "cart": cart,
-                    "shopping_cart": cart
+                    "cart": cart
                 }
             }
         }

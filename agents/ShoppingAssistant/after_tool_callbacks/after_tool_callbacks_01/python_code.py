@@ -171,7 +171,7 @@ def after_tool_callback(
     discount_pct = float(state.get("discount_pct") or (tool_output.get("cart", {}).get("discount_pct") if isinstance(tool_output.get("cart"), dict) else 0) or 0)
 
     if tool_name in ("add_to_cart", "remove_from_cart", "get_cart"):
-        cart = tool_output.get("cart") or tool_output.get("shopping_cart") or state.get("cart") or state.get("shopping_cart")
+        cart = tool_output.get("cart") or state.get("cart")
         if cart and isinstance(cart, dict):
             subtotal = float(cart.get("subtotal", 0.0))
             disc_amt = round(subtotal * (discount_pct / 100.0), 2)
@@ -181,13 +181,10 @@ def after_tool_callback(
                 "total": round(subtotal - disc_amt, 2),
             })
             set_state_var(context_obj, "cart", cart)
-            set_state_var(context_obj, "shopping_cart", cart)
             tool_output["cart"] = cart
-            tool_output["shopping_cart"] = cart
             tool_output["x-ces-session-context"] = {
                 "variables": {
-                    "cart": cart,
-                    "shopping_cart": cart
+                    "cart": cart
                 }
             }
 

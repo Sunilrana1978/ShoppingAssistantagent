@@ -80,32 +80,6 @@
       }
     },
     {
-      "name": "shopping_cart",
-      "description": "In-memory shopping cart object state engine matching CXAS blueprint.",
-      "schema": {
-        "type": "OBJECT",
-        "properties": {
-          "items": {
-            "type": "ARRAY",
-            "items": {
-              "type": "OBJECT",
-              "properties": {
-                "sku": { "type": "STRING" },
-                "name": { "type": "STRING" },
-                "qty": { "type": "INTEGER" },
-                "size": { "type": "STRING" },
-                "unit_price": { "type": "NUMBER" }
-              }
-            }
-          },
-          "subtotal": { "type": "NUMBER" },
-          "discount_pct": { "type": "NUMBER" },
-          "discount_amount": { "type": "NUMBER" },
-          "total": { "type": "NUMBER" }
-        }
-      }
-    },
-    {
       "name": "comments",
       "description": "Customer feedback comments.",
       "schema": {
