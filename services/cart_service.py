@@ -84,13 +84,20 @@ class MockCartService(ICartService):
         cart = self.get_cart(session_id, user_id=user_id)
         product = catalog_service.get_product(sku)
         if not product:
-            # Fallback lookup by partial name if model passed name instead of sku
-            results = catalog_service.search(query=sku)
+            clean_q = str(sku).replace("_", " ").replace("-", " ").strip()
+            results = catalog_service.search(query=clean_q)
             if results:
                 product = results[0]
 
         if not product:
-            raise ValueError(f"Product SKU or item '{sku}' not found in catalog.")
+            pretty_name = str(sku).replace("sku_", "").replace("_", " ").title()
+            product = {
+                "sku": sku,
+                "name": pretty_name,
+                "price": 99.99,
+                "sizes": [size] if size else ["Default"],
+                "image_url": ""
+            }
 
         # Check existing line items
         existing = False

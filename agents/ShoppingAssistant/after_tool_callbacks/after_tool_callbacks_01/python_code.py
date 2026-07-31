@@ -1,3 +1,4 @@
+import os
 from typing import Any, Optional
 
 Tool = Any
@@ -17,8 +18,6 @@ except ImportError:
         _MEMORY_BANK_AVAILABLE = True
     except ImportError:
         _MEMORY_BANK_AVAILABLE = False
-
-import os
 
 DEFAULT_REASONING_ENGINE_ID = "432575911913586688"
 
@@ -53,25 +52,87 @@ def _save_live_memory(user_id: str, fact_text: str, project_id: str = "ecom-cx-a
         pass
 
 
+def get_session_id(callback_context: Any) -> str:
+    """Helper to extract active session ID from Agent Engine callback context."""
+    if not callback_context:
+        return ""
+    if hasattr(callback_context, "session_id") and getattr(callback_context, "session_id"):
+        return str(getattr(callback_context, "session_id"))
+    if hasattr(callback_context, "session"):
+        session = getattr(callback_context, "session")
+        if hasattr(session, "id") and getattr(session, "id"):
+            return str(getattr(session, "id"))
+        if hasattr(session, "session_id") and getattr(session, "session_id"):
+            return str(getattr(session, "session_id"))
+        if isinstance(session, dict):
+            return str(session.get("id") or session.get("session_id") or "")
+    if isinstance(callback_context, dict):
+        return str(callback_context.get("session_id") or callback_context.get("state", {}).get("session_id") or "")
+    return ""
+
+
 def get_state(callback_context: Any) -> dict:
     """Helper to retrieve state dict following CXAS Scrapi Design Guide standards."""
+    if not callback_context:
+        return {}
+    res = {}
+    if hasattr(callback_context, "session"):
+        session = getattr(callback_context, "session")
+        if hasattr(session, "get_parameter"):
+            for k in ("cart", "user_id", "user_name", "discount_pct", "membership_tier", "session_id"):
+                try:
+                    val = session.get_parameter(k)
+                    if val is not None:
+                        res[k] = val
+                except Exception:
+                    pass
+        if hasattr(session, "parameters") and isinstance(getattr(session, "parameters"), dict):
+            res.update(getattr(session, "parameters"))
+        if hasattr(session, "state") and isinstance(getattr(session, "state"), dict):
+            res.update(getattr(session, "state"))
+        if hasattr(session, "variables") and isinstance(getattr(session, "variables"), dict):
+            res.update(getattr(session, "variables"))
+        if isinstance(session, dict):
+            p = session.get("parameters") or session.get("state") or session.get("variables")
+            if isinstance(p, dict):
+                res.update(p)
+
     if hasattr(callback_context, "state") and isinstance(getattr(callback_context, "state"), dict):
-        return callback_context.state
+        res.update(getattr(callback_context, "state"))
     if hasattr(callback_context, "variables") and isinstance(getattr(callback_context, "variables"), dict):
-        return callback_context.variables
+        res.update(getattr(callback_context, "variables"))
     if isinstance(callback_context, dict):
         if "state" in callback_context and isinstance(callback_context["state"], dict):
-            return callback_context["state"]
-        if "variables" in callback_context and isinstance(callback_context["variables"], dict):
-            return callback_context["variables"]
-        return callback_context
-    return {}
+            res.update(callback_context["state"])
+        elif "variables" in callback_context and isinstance(callback_context["variables"], dict):
+            res.update(callback_context["variables"])
+        else:
+            res.update(callback_context)
+    return res
 
 
 def set_state_var(callback_context: Any, key: str, value: Any) -> None:
     """Helper to write state variable across CXAS runtime and local test harnesses."""
+    if not callback_context:
+        return
+    if hasattr(callback_context, "session"):
+        session = getattr(callback_context, "session")
+        if hasattr(session, "set_parameter"):
+            try:
+                session.set_parameter(key, value)
+            except Exception:
+                pass
+        if hasattr(session, "parameters") and isinstance(getattr(session, "parameters"), dict):
+            session.parameters[key] = value
+        if hasattr(session, "state") and isinstance(getattr(session, "state"), dict):
+            session.state[key] = value
+        if hasattr(session, "variables") and isinstance(getattr(session, "variables"), dict):
+            session.variables[key] = value
+
     state = get_state(callback_context)
-    state[key] = value
+    if isinstance(state, dict):
+        state[key] = value
+
     if hasattr(callback_context, "state") and isinstance(getattr(callback_context, "state"), dict):
         callback_context.state[key] = value
     if hasattr(callback_context, "variables") and isinstance(getattr(callback_context, "variables"), dict):
@@ -91,8 +152,8 @@ def after_tool_callback(
     tool_response: dict[str, Any],
 ) -> Optional[dict[str, Any]]:
     """
-    Executes after a tool call finishes to update session variables
-    and recompute cart pricing.
+    Executes after a tool call finishes to update session variables,
+    recompute cart pricing, and commit state back to Agent Engine.
     """
     if tool_response is None and callback_context is not None:
         tool_name = str(tool)
@@ -104,9 +165,7 @@ def after_tool_callback(
         context_obj = callback_context if callback_context is not None else input
 
     state = get_state(context_obj)
-    # Guard: session_id may arrive as {} (empty object) if not declared as a string variable.
-    raw_session_id = state.get("session_id", "sess_default")
-    session_id = str(raw_session_id).strip() if raw_session_id and not isinstance(raw_session_id, dict) else "sess_default"
+    sid = get_session_id(context_obj) or state.get("session_id") or "sess_default"
     user_id = state.get("user_id", "")
     discount_pct = float(state.get("discount_pct") or (tool_output.get("cart", {}).get("discount_pct") if isinstance(tool_output.get("cart"), dict) else 0) or 0)
 
@@ -121,12 +180,6 @@ def after_tool_callback(
                 "total": round(subtotal - disc_amt, 2),
             })
             set_state_var(context_obj, "cart", cart)
-            # Also write via session.set_parameter for CXAS runtimes that need it
-            try:
-                if hasattr(context_obj, "session") and hasattr(context_obj.session, "set_parameter"):
-                    context_obj.session.set_parameter("cart", cart)
-            except Exception:
-                pass
             tool_output["cart"] = cart
 
             # Save live memory fact to Vertex AI Memory Bank
@@ -140,7 +193,7 @@ def after_tool_callback(
             new_pct = tool_output["discount_pct"]
             set_state_var(context_obj, "discount_pct", new_pct)
             if cart_service:
-                updated_cart = cart_service.update_cart_pricing(session_id, new_pct)
+                updated_cart = cart_service.update_cart_pricing(sid, new_pct)
                 set_state_var(context_obj, "cart", updated_cart)
             elif state.get("cart"):
                 cart = dict(state["cart"])
