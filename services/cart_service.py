@@ -1,4 +1,5 @@
 import json
+import fcntl
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Any, Optional
@@ -13,6 +14,9 @@ def _get_storage_file() -> Path:
         except Exception:
             base_dir = Path(tempfile.gettempdir())
     return base_dir / "session_carts.json"
+
+def _get_lock_file() -> Path:
+    return _get_storage_file().parent / "session_carts.lock"
 
 class MockCartService(ICartService):
     def __init__(self):
@@ -32,9 +36,56 @@ class MockCartService(ICartService):
                 pass
 
     def _save_to_disk(self):
+        lock_path = _get_lock_file()
         try:
-            with open(self.file_path, "w", encoding="utf-8") as f:
-                json.dump({"carts": self._carts, "user_carts": self._user_carts}, f, indent=2)
+            with open(lock_path, "w") as lock_f:
+                fcntl.flock(lock_f, fcntl.LOCK_EX)
+                try:
+                    disk_carts = {}
+                    disk_user_carts = {}
+                    if self.file_path.exists():
+                        try:
+                            with open(self.file_path, "r", encoding="utf-8") as f:
+                                data = json.load(f)
+                                disk_carts = data.get("carts", {})
+                                disk_user_carts = data.get("user_carts", {})
+                        except Exception:
+                            pass
+
+                    for sid, cart in self._carts.items():
+                        if sid in disk_carts and disk_carts[sid].get("items"):
+                            merged_items = {}
+                            for item in (disk_carts[sid].get("items", []) + cart.get("items", [])):
+                                key = f"{str(item.get('sku')).lower()}_{str(item.get('size')).lower()}"
+                                if key not in merged_items:
+                                    merged_items[key] = dict(item)
+                                else:
+                                    merged_items[key]["qty"] = max(merged_items[key]["qty"], item["qty"])
+                            items_list = list(merged_items.values())
+                            subtotal = round(sum(float(i.get("unit_price", 0.0)) * int(i.get("qty", 1)) for i in items_list), 2)
+                            disc_pct = float(cart.get("discount_pct") or disk_carts[sid].get("discount_pct") or 0.0)
+                            disc_amt = round(subtotal * (disc_pct / 100.0), 2)
+                            merged_cart = {
+                                "session_id": sid,
+                                "user_id": cart.get("user_id") or disk_carts[sid].get("user_id") or "",
+                                "items": items_list,
+                                "subtotal": subtotal,
+                                "discount_pct": disc_pct,
+                                "discount_amount": disc_amt,
+                                "total": round(subtotal - disc_amt, 2)
+                            }
+                            disk_carts[sid] = merged_cart
+                            self._carts[sid] = merged_cart
+                        else:
+                            disk_carts[sid] = cart
+
+                    for uid, ucart in self._user_carts.items():
+                        disk_user_carts[uid] = ucart
+
+                    with open(self.file_path, "w", encoding="utf-8") as f:
+                        json.dump({"carts": disk_carts, "user_carts": disk_user_carts}, f, indent=2)
+                finally:
+                    fcntl.flock(lock_f, fcntl.LOCK_UN)
         except Exception:
             pass
 
@@ -134,7 +185,7 @@ class MockCartService(ICartService):
             self._user_carts[uid] = cart
         self._save_to_disk()
 
-        return cart
+        return self._carts.get(sid, cart)
 
     def remove_item(self, session_id: str, sku: str) -> Dict[str, Any]:
         cart = self.get_cart(session_id)
@@ -170,4 +221,3 @@ class MockCartService(ICartService):
         return cart
 
 cart_service = MockCartService()
-
