@@ -239,9 +239,24 @@ def after_tool_callback(
         set_state_var(context_obj, "membership_tier", tier)
 
         # Restore long term memories dynamically from Vertex AI Memory Bank
+        memories = []
         if uid and uid.lower() not in ("guest", "u_guest"):
             memories = _retrieve_memories(uid)
             set_state_var(context_obj, "long_term_memories", memories)
+
+        # Explicitly instruct CES session manager to update state variables
+        updated_vars = {
+            "user_id": uid,
+            "user_name": name,
+            "membership_tier": tier,
+            "long_term_memories": memories
+        }
+        tool_output["updatedVariables"] = updated_vars
+        tool_output["updated_variables"] = updated_vars
+        tool_output["variables"] = updated_vars
+        tool_output["x-ces-session-context"] = {
+            "variables": updated_vars
+        }
 
     elif tool_name == "search_catalog":
         if "products" in tool_output:
