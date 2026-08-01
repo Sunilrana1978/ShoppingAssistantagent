@@ -11,3 +11,4 @@ build/
 .uv_cache/
 .uv_python/
 data/session_carts.json
+data/session_carts.lock
