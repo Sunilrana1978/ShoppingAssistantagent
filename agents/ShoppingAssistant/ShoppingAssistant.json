@@ -4,13 +4,20 @@
   "description": "Primary conversational assistant for product discovery, discounts, and cart management.",
   "instruction": "agents/ShoppingAssistant/instruction.txt",
   "tools": [
-    "fetch_user_profile",
     "get_discount",
     "search_catalog",
     "add_to_cart",
     "get_cart",
     "remove_from_cart",
     "end_session"
+  ],
+  "toolsets": [
+    {
+      "toolset": "fetch_user_profile",
+      "toolIds": [
+        "fetch_user_profile"
+      ]
+    }
   ],
   "beforeAgentCallbacks": [
     {

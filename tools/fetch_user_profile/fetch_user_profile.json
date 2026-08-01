@@ -1,7 +1,0 @@
-{
-  "displayName": "fetch_user_profile",
-  "openApiTool": {
-    "description": "Fetch live user profile metadata, long-term memory facts, and previous cart snapshot from Firestore.",
-    "openApiSchema": "tools/fetch_user_profile/openapi_schema.json"
-  }
-}
