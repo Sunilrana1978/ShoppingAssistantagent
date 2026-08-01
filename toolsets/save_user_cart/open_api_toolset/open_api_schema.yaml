@@ -1,0 +1,70 @@
+openapi: 3.0.3
+info:
+  title: User Profile Microservice API
+  version: 1.0.0
+servers:
+  - url: https://shopping-user-service-331751626808.us-central1.run.app
+paths:
+  /api/v1/users/{user_id}/cart:
+    post:
+      operationId: save_user_cart
+      summary: Persist a cross-session cart snapshot for the user in Firestore.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cart
+              properties:
+                cart:
+                  type: object
+                  properties:
+                    session_id:
+                      type: string
+                    user_id:
+                      type: string
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          sku:
+                            type: string
+                          name:
+                            type: string
+                          unit_price:
+                            type: number
+                          qty:
+                            type: integer
+                          size:
+                            type: string
+                    subtotal:
+                      type: number
+                    discount_pct:
+                      type: number
+                    discount_amount:
+                      type: number
+                    total:
+                      type: number
+      responses:
+        "200":
+          description: Cart snapshot saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  user_id:
+                    type: string
+                  cart:
+                    type: object

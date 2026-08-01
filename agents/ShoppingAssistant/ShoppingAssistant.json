@@ -17,6 +17,12 @@
       "toolIds": [
         "fetch_user_profile"
       ]
+    },
+    {
+      "toolset": "save_user_cart",
+      "toolIds": [
+        "save_user_cart"
+      ]
     }
   ],
   "beforeAgentCallbacks": [

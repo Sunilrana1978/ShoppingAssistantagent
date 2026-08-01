@@ -1,10 +1,8 @@
 import os
 import json
-import ssl
 import logging
 import fcntl
 import tempfile
-import urllib.request
 from typing import Dict, Any, Optional
 
 try:
@@ -15,15 +13,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 _FALLBACK_CARTS: Dict[str, Dict[str, Any]] = {}
-
-CLOUD_RUN_TARGETS = [
-    {"url": "https://shopping-user-service-331751626808.us-central1.run.app", "headers": {}},
-    {"url": "https://34.143.73.2", "headers": {"Host": "shopping-user-service-331751626808.us-central1.run.app"}},
-    {"url": "https://34.143.76.2", "headers": {"Host": "shopping-user-service-331751626808.us-central1.run.app"}},
-    {"url": "https://34.143.74.2", "headers": {"Host": "shopping-user-service-331751626808.us-central1.run.app"}},
-    {"url": "https://shopping-user-service-4ig7nhz5fq-uc.a.run.app", "headers": {}}
-]
-
 
 CATALOG_PRICES = {
     "sku_1029": {"name": "TrailBlaze Pro Trail Runner", "price": 129.99},
@@ -162,11 +151,6 @@ def add_to_cart(
                 tmp_carts[f"user_{uid}"] = cart
             cart = _save_tmp_carts(tmp_carts, target_sid=sid, target_uid=uid) or cart
 
-        try:
-            _save_cart_snapshot(uid, cart)
-        except Exception as err:
-            logger.debug(f"Cart snapshot persist skipped: {err}")
-
         # Direct CXAS runtime state mutation
         if "context" in globals() and hasattr(globals()["context"], "state"):
             globals()["context"].state["cart"] = cart
@@ -201,33 +185,6 @@ def add_to_cart(
             "status": "error",
             "agent_action": f"Could not add SKU {sku} to cart: {str(e)}"
         }
-
-
-def _save_cart_snapshot(user_id: str, cart: Dict[str, Any], timeout: int = 5) -> None:
-    """
-    Best-effort persist of the cart snapshot to Firestore via the user-profile microservice,
-    so it can be recalled as previous_cart by fetch_user_profile in a future session.
-    Never raises - a failed/slow save must not break the tool's primary response.
-    """
-    if not user_id:
-        return
-
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    body = json.dumps({"cart": cart}).encode("utf-8")
-
-    for target in CLOUD_RUN_TARGETS:
-        url = f"{target['url'].rstrip('/')}/api/v1/users/{user_id}/cart"
-        headers = dict(target["headers"])
-        headers["Content-Type"] = "application/json"
-        try:
-            req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-            with urllib.request.urlopen(req, context=ctx, timeout=timeout) as resp:
-                if resp.status == 200:
-                    return
-        except Exception as err:
-            logger.debug(f"Cart snapshot POST {url} failed: {err}")
 
 
 def _get_tmp_storage_file() -> str:
