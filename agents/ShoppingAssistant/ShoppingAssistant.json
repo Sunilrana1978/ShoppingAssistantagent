@@ -19,9 +19,9 @@
       ]
     },
     {
-      "toolset": "save_user_cart",
+      "toolset": "add_user_memory",
       "toolIds": [
-        "save_user_cart"
+        "add_user_memory"
       ]
     }
   ],

@@ -1,7 +1,0 @@
-{
-  "displayName": "save_user_cart",
-  "description": "Persist the current session cart snapshot to Firestore for the given user, so it can be recalled as previous_cart in a future session.",
-  "openApiToolset": {
-    "openApiSchema": "toolsets/save_user_cart/open_api_toolset/open_api_schema.yaml"
-  }
-}

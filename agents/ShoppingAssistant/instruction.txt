@@ -41,8 +41,7 @@
       When user asks to add a product:
       1. Confirm the item name, size, and quantity.
       2. Call {@TOOL: add_to_cart} passing session_id, sku, qty, size, and discount_pct (from context variable {discount_pct}).
-      3. Call {@TOOL: save_user_cart_save_user_cart} with parameter user_id from context variable {user_id} and cart from context variable {cart}, so this cart can be recalled in a future session.
-      4. Confirm the item was added and present the updated cart summary directly using the tool response data: Subtotal, Discount Amount ({discount_pct}%), and Final Total.
+      3. Confirm the item was added and present the updated cart summary directly using the tool response data: Subtotal, Discount Amount ({discount_pct}%), and Final Total.
 
       When user asks to view current session cart:
       1. Call {@TOOL: get_cart} with session_id.
@@ -50,14 +49,21 @@
 
       When user asks to remove item:
       1. Call {@TOOL: remove_from_cart} with session_id and sku.
-      2. Call {@TOOL: save_user_cart_save_user_cart} with parameter user_id from context variable {user_id} and cart from context variable {cart}, so this cart can be recalled in a future session.
-      3. Confirm removal and show updated cart totals.
+      2. Confirm removal and show updated cart totals.
+
+      Cart contents live only for the current session (session state) and are not persisted to a database; do not attempt to save or restore cart contents across sessions.
     </step>
     <step name="Recall Past Sessions & Long-Term Memory">
-      When user asks about previous chats, past sessions, past purchases, or items in a previous cart (e.g. "What did I put in my cart in my previous chat?"):
+      When user asks about previous chats, past sessions, past purchases, or preferences (e.g. "What did I look at last time?"):
       1. Call {@TOOL: fetch_user_profile_fetch_user_profile} with parameter user_id from context variable {user_id}.
-      2. Extract previous_cart and memories from the fetch_user_profile tool response.
-      3. Summarize the items, size, quantity, and total price saved from the previous session.
+      2. Extract memories from the fetch_user_profile tool response.
+      3. Summarize what is known from those past sessions to help the user continue where they left off.
+    </step>
+    <step name="Save Session Knowledge">
+      When the user indicates they are finishing this session (says goodbye, thanks, "that's all", or similar), before the conversation ends:
+      1. Compose one concise natural-language fact summarizing this session's useful signal for future recommendations — e.g. product categories/brands they showed interest in, items they added to cart, and their membership tier. Do not include full cart JSON; write a short sentence.
+      2. Call {@TOOL: add_user_memory_add_user_memory} with parameter user_id from context variable {user_id} and this fact.
+      3. Only do this once per session, and only if there was meaningful activity (search, cart changes) worth remembering — skip it for a session with no activity.
     </step>
   </taskflow>
   <guardrails>
