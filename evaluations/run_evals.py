@@ -13,6 +13,7 @@ from services.catalog_service import catalog_service
 from services.cart_service import cart_service
 from services.feedback_service import feedback_service
 from agents.ShoppingAssistant.after_tool_callbacks.after_tool_callbacks_01.python_code import after_tool_callback
+from agents.FeedbackAgent.after_tool_callbacks.after_tool_callbacks_01.python_code import after_tool_callback as feedback_after_tool_callback
 
 
 def run_evaluations():
@@ -78,7 +79,7 @@ def run_evaluations():
                     cart = cart_service.add_item(session_id=context["state"]["session_id"], sku="sku_1032", qty=1, size="4 3/8")
                     after_tool_callback("add_to_cart", {}, context, {"cart": cart})
                     res = feedback_service.submit_feedback(user_id, 5, "Excellent racket recommendation and seamless cart experience!")
-                    after_tool_callback("submit_feedback", {}, context, res)
+                    feedback_after_tool_callback("submit_feedback", {}, context, res)
                     assert context["state"].get("feedback_submitted") is True
                 else:
                     cart = cart_service.add_item(session_id=context["state"]["session_id"], sku="sku_1029", qty=1, size=10)
