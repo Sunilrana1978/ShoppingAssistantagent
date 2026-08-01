@@ -1,31 +1,10 @@
+import logging
 from typing import Any, Optional
-import json
 
 CallbackContext = Any
 Content = Any
 
-try:
-    from services.user_service import user_service
-except ImportError:
-    user_service = None
-
-try:
-    from services.cart_service import cart_service
-except ImportError:
-    cart_service = None
-
-# ---------------------------------------------------------------------------
-# Long-Term Memory Bank integration (Vertex AI Memory Bank)
-# ---------------------------------------------------------------------------
-try:
-    from google.cloud.aiplatform_v1beta1 import MemoryBankServiceClient  # type: ignore
-    _MEMORY_BANK_AVAILABLE = True
-except ImportError:
-    try:
-        from google.cloud.aiplatform.memory import MemoryBankServiceClient  # type: ignore
-        _MEMORY_BANK_AVAILABLE = True
-    except ImportError:
-        _MEMORY_BANK_AVAILABLE = False
+logger = logging.getLogger(__name__)
 
 
 def get_state(callback_context: Any) -> dict:
@@ -95,64 +74,17 @@ def set_state_var(callback_context: Any, key: str, value: Any) -> None:
         _set_on_target(session)
         for attr in ("state", "variables", "session_variables", "parameters"):
             if hasattr(session, attr):
-                _set_on_target(getattr(session, attr))
-
-
-import os
-
-def _retrieve_memories(user_id: str, project_id: str = "ecom-cx-agent", location: str = "us-central1") -> list:
-    """
-    Retrieve up to 5 long-term memory facts from Vertex AI Memory Bank
-    for the given user_id.
-    """
-    if not _MEMORY_BANK_AVAILABLE or not user_id:
-        return []
-
-    try:
-        endpoint = f"{location}-aiplatform.googleapis.com"
-        client = MemoryBankServiceClient(client_options={"api_endpoint": endpoint})
-        engine_id = os.getenv("REASONING_ENGINE_ID", "432575911913586688")
-        parent = f"projects/{project_id}/locations/{location}/reasoningEngines/{engine_id}"
-        
-        req = {"parent": parent, "scope": {"user_id": user_id}}
-        response = client.retrieve_memories(request=req)
-        
-        memories = []
-        if hasattr(response, "retrieved_memories") and response.retrieved_memories:
-            for item in response.retrieved_memories:
-                m = getattr(item, "memory", item)
-                fact = getattr(m, "fact", "") or getattr(m, "text", "") or str(m)
-                if fact and fact not in memories:
-                    memories.append(fact)
-        elif hasattr(response, "memories") and response.memories:
-            for m in response.memories:
-                fact = getattr(m, "fact", "") or getattr(m, "text", "") or str(m)
-                if fact and fact not in memories:
-                    memories.append(fact)
-        return memories
-    except Exception:
-        # Fall back gracefully to local profile memories if GCP Memory Bank is unconfigured
-        return []
+                _set_on_target(session, attr)
 
 
 def before_agent_callback(callback_context: CallbackContext) -> Optional[Content]:
     """
     Executes at the beginning of each agent turn (RootAgent).
-
-    Responsibilities:
-    1. Reads user_id from session state or session parameter.
-    2. Looks up user profile (name, membership_tier, memories, previous_cart).
-    3. Retrieves long-term memories from Vertex AI Memory Bank and
-       restores cross-session cart state for the user.
-    4. Populates user_name, membership_tier, cart, and long_term_memories
-       into session state for downstream agents.
+    Ensures user_id and default variables are initialized cleanly.
     """
     try:
         state = get_state(callback_context)
 
-        # ----------------------------------------------------------------
-        # 1. Resolve user_id
-        # ----------------------------------------------------------------
         user_id = state.get("user_id")
         if not user_id and hasattr(callback_context, "session") and hasattr(callback_context.session, "get_parameter"):
             user_id = callback_context.session.get_parameter("user_id", "")
@@ -160,56 +92,14 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[Content
         if isinstance(user_id, str):
             user_id = user_id.strip('"').strip("'").strip()
 
-        if not user_id or user_id.lower() in ("guest", "u_guest"):
-            if not state.get("user_name"):
-                set_state_var(callback_context, "user_name", "Shopper")
-            set_state_var(callback_context, "long_term_memories", [])
-            return None
+        if not user_id:
+            user_id = "guest"
+            set_state_var(callback_context, "user_id", "guest")
 
-        # ----------------------------------------------------------------
-        # 2. Load user profile & long-term memories
-        # ----------------------------------------------------------------
-        if user_service:
-            profile = user_service.get_user_profile(user_id)
-        else:
-            mock_users = {
-                "u_1029": {"name": "Alex", "membership_tier": "gold"},
-                "u_1030": {"name": "Jordan", "membership_tier": "silver"},
-                "u_1031": {"name": "Taylor", "membership_tier": "bronze"},
-            }
-            profile = mock_users.get(
-                user_id,
-                {"name": user_id.capitalize(), "membership_tier": "none"},
-            )
+        if not state.get("user_name"):
+            set_state_var(callback_context, "user_name", "Shopper")
 
-        name = profile.get("user_name") or profile.get("name", "Shopper")
-        tier = profile.get("membership_tier", "none")
-
-        set_state_var(callback_context, "user_id", user_id)
-        set_state_var(callback_context, "user_name", name)
-        set_state_var(callback_context, "membership_tier", tier)
-
-        # ----------------------------------------------------------------
-        # 3. Retrieve Vertex AI Memory Bank
-        # ----------------------------------------------------------------
-        memories = _retrieve_memories(user_id)
-
-        # ----------------------------------------------------------------
-        # 4. Cross-Session Cart Persistence & Memory Synthesis
-        # ----------------------------------------------------------------
-        session_id = state.get("session_id", "sess_default")
-        cart = state.get("cart")
-        
-        # Check active cart from cart_service
-        if cart_service:
-            restored_cart = cart_service.get_cart(session_id, user_id=user_id)
-            if restored_cart and restored_cart.get("items"):
-                cart = restored_cart
-                set_state_var(callback_context, "cart", cart)
-
-        set_state_var(callback_context, "long_term_memories", memories)
-
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"Error in RootAgent before_agent_callback: {e}")
 
     return None

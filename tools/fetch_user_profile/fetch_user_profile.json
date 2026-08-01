@@ -1,0 +1,6 @@
+{
+  "displayName": "fetch_user_profile",
+  "openApiToolset": {
+    "openApiSchema": "tools/fetch_user_profile/openapi_schema.json"
+  }
+}

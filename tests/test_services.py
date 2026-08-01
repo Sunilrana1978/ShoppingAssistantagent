@@ -12,7 +12,7 @@ from services.catalog_service import catalog_service
 from services.cart_service import cart_service
 from services.feedback_service import feedback_service
 from tools import (
-    get_user_profile,
+    fetch_user_profile,
     get_discount,
     search_catalog,
     add_to_cart,

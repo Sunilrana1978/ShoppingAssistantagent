@@ -1,18 +1,26 @@
 {
   "u_1029": {
     "name": "Alex",
-    "membership_tier": "gold"
+    "membership_tier": "gold",
+    "memories": [],
+    "previous_cart": {}
   },
   "u_1030": {
     "name": "Jordan",
-    "membership_tier": "silver"
+    "membership_tier": "silver",
+    "memories": [],
+    "previous_cart": {}
   },
   "u_1031": {
     "name": "Taylor",
-    "membership_tier": "bronze"
+    "membership_tier": "bronze",
+    "memories": [],
+    "previous_cart": {}
   },
   "guest": {
     "name": "Guest",
-    "membership_tier": "none"
+    "membership_tier": "none",
+    "memories": [],
+    "previous_cart": {}
   }
 }
