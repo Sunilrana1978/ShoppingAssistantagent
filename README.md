@@ -289,6 +289,12 @@ Simulates an interactive customer turn-by-turn conversation:
 uv run python scripts/test_interactive_session.py
 ```
 
+### Run Live Routing Smoke Test
+`run_evals.py` only simulates ShoppingAssistant's own callback chain locally — it never exercises RootAgent's actual routing/transfer behavior. This script drives real conversation turns against a *deployed* app via the CES Sessions API and checks that RootAgent transfers greetings and shop/feedback intent to the right sub-agent. Needs live GCP credentials and burns model quota, so it's not wired into CI — run manually after changing any `agents/*/instruction.txt` or `agents/*/*.json`:
+```bash
+uv run python scripts/smoke_test_routing.py --env dev
+```
+
 ---
 
 ## 🔐 Keyless Authentication Setup (GCP Workload Identity Federation)

@@ -20,7 +20,6 @@ DEFAULT_MOCK_USERS = {
         "user_name": "Alex",
         "membership_tier": "gold",
         "memories": [],
-        "previous_cart": {},
         "preferences": {}
     },
     "u_1030": {
@@ -29,7 +28,6 @@ DEFAULT_MOCK_USERS = {
         "user_name": "Jordan",
         "membership_tier": "silver",
         "memories": [],
-        "previous_cart": {},
         "preferences": {}
     },
     "u_1031": {
@@ -38,7 +36,6 @@ DEFAULT_MOCK_USERS = {
         "user_name": "Taylor",
         "membership_tier": "bronze",
         "memories": [],
-        "previous_cart": {},
         "preferences": {}
     },
     "guest": {
@@ -47,7 +44,6 @@ DEFAULT_MOCK_USERS = {
         "user_name": "Guest Customer",
         "membership_tier": "none",
         "memories": [],
-        "previous_cart": {},
         "preferences": {}
     }
 }
@@ -73,7 +69,7 @@ class FirestoreService:
             logger.warning("google-cloud-firestore package not available. Using in-memory store.")
 
     def get_user_profile(self, user_id: str) -> Dict[str, Any]:
-        """Fetch user profile metadata, long-term memory facts, and previous cart from Firestore."""
+        """Fetch user profile metadata and long-term memory facts from Firestore."""
         if not user_id:
             user_id = "guest"
 
@@ -91,7 +87,6 @@ class FirestoreService:
                         "user_name": data.get("user_name") or data.get("name", "Shopper"),
                         "membership_tier": data.get("membership_tier", "none"),
                         "memories": data.get("memories", []),
-                        "previous_cart": data.get("previous_cart", {}),
                         "preferences": data.get("preferences", {})
                     }
                 else:
@@ -170,16 +165,6 @@ class FirestoreService:
         profile["preferences"] = preferences
         self.save_user_profile(user_id, profile)
         return preferences
-
-    def save_user_cart(self, user_id: str, cart_data: Dict[str, Any]) -> bool:
-        """Save cross-session cart snapshot to user profile in Firestore."""
-        if not user_id:
-            return False
-
-        user_id = user_id.strip('"').strip("'").strip()
-        profile = self.get_user_profile(user_id)
-        profile["previous_cart"] = cart_data
-        return self.save_user_profile(user_id, profile)
 
 
 firestore_service = FirestoreService()

@@ -17,4 +17,7 @@
       5. Confirm receipt of their feedback, thank them, and ask if they would like to return to shopping with {@AGENT: ShoppingAssistant}.
     </step>
   </taskflow>
+  <guardrails>
+    - {@TOOL: add_user_memory_add_user_memory} is a best-effort background write for future personalization. If it fails or is unavailable, do not mention it or apologize for it — the customer's feedback has already been recorded via submit_feedback; silently continue to step 5.
+  </guardrails>
 </agent_instructions>
