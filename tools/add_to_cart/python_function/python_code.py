@@ -37,6 +37,22 @@ CATALOG_PRICES = {
     "sku_1033": {"name": "UltraGrip Gym Gloves", "price": 29.99},
     "ultragrip": {"name": "UltraGrip Gym Gloves", "price": 29.99},
     "ug": {"name": "UltraGrip Gym Gloves", "price": 29.99},
+
+    "sku_1034": {"name": "CourtKing Official Basketball", "price": 34.99},
+    "courtking": {"name": "CourtKing Official Basketball", "price": 34.99},
+    "cb": {"name": "CourtKing Official Basketball", "price": 34.99},
+
+    "sku_1035": {"name": "TrailForge Summit Hiking Boots", "price": 159.99},
+    "trailforge": {"name": "TrailForge Summit Hiking Boots", "price": 159.99},
+    "hb": {"name": "TrailForge Summit Hiking Boots", "price": 159.99},
+
+    "sku_1036": {"name": "Velocity AeroShield Cycling Helmet", "price": 79.99},
+    "aeroshield": {"name": "Velocity AeroShield Cycling Helmet", "price": 79.99},
+    "ch": {"name": "Velocity AeroShield Cycling Helmet", "price": 79.99},
+
+    "sku_1037": {"name": "ZenFlex Pro Yoga Mat", "price": 39.99},
+    "zenflex": {"name": "ZenFlex Pro Yoga Mat", "price": 39.99},
+    "ym": {"name": "ZenFlex Pro Yoga Mat", "price": 39.99},
 }
 
 
