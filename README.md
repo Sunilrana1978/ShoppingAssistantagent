@@ -16,7 +16,7 @@ The application features a **Multi-Agent Router Architecture** driven by natural
 - **Persistent User Memory (Firestore)**: A Cloud Run microservice backed by Firestore stores two kinds of durable knowledge per user — free-text interaction facts (`add_user_memory`) and structured shopping preferences (`update_user_preferences`: categories, sports, brands, sizes, budget) — both recalled via `fetch_user_profile` so future sessions can give better recommendations. The live shopping cart itself stays session-scoped and is never persisted.
 - **Membership Discount Engine**: Automatically applies member discounts (**Gold: 15%**, **Silver: 10%**, **Bronze: 5%**, **Guest: 0%**) to product prices and cart totals.
 - **Server-Side Pricing Math**: Calculates exact float arithmetic for cart subtotals, discount amounts, and grand totals server-side via callback functions.
-- **Rich Response Widgets**: Renders product recommendations and cart line items as structured, image-bearing Info Card UI widgets.
+- **Rich Response Widgets**: `ShoppingAssistant` calls a native CXAS `WidgetTool` (`tools/show_product_carousel/`) directly after `search_catalog`, rendering results as an image-bearing product carousel — a first-class platform tool the model invokes itself, not a callback formatting a custom payload.
 - **Service Abstraction Layer**: Data access is isolated behind `IUserService`, `IDiscountService`, `ICatalogService`, `ICartService`, and `IFeedbackService` interfaces — currently backed by mock JSON files, ready to swap for real REST/OpenAPI backends.
 - **CI/CD & Environment Promotion**: Fully configured GitHub Actions workflows for continuous integration quality gates (`.github/workflows/ci.yml`) and multi-environment deployment (`.github/workflows/cd.yml`).
 
@@ -41,7 +41,7 @@ flowchart LR
 
     subgraph Sandbox["4. pythonFunction Tools & Callbacks\n(sandboxed — zero network egress)"]
         PyTools["get_discount, search_catalog,\nadd/remove/get_cart, submit_feedback"]
-        Callbacks["before_agent / before_tool /\nafter_tool / after_model callbacks"]
+        Callbacks["before_agent / before_tool /\nafter_tool callbacks"]
         MockData[("JSON Mock Catalog &\nSession Cart State")]
         PyTools --> MockData
         Callbacks --> MockData
@@ -53,7 +53,11 @@ flowchart LR
         UpdatePrefs["update_user_preferences"]
     end
 
-    subgraph Memory["6. Persistent Memory Tier"]
+    subgraph WidgetTools["6. Widget Tool\n(platform-native, model-invoked)"]
+        Carousel["show_product_carousel\n(PRODUCT_CAROUSEL)"]
+    end
+
+    subgraph Memory["7. Persistent Memory Tier"]
         Microservice["shopping-user-service\n(FastAPI on Cloud Run)"]
         Firestore[("Firestore\nuser_profiles collection")]
         Microservice --> Firestore
@@ -63,11 +67,13 @@ flowchart LR
     Root --> ShopAgent
     Root --> FeedAgent
     ShopAgent --> PyTools
+    ShopAgent --> Carousel
     ShopAgent --> FetchProfile & AddMemory & UpdatePrefs
     FeedAgent --> PyTools
     FeedAgent --> AddMemory
     FetchProfile & AddMemory & UpdatePrefs --> Microservice
-    ShopAgent & FeedAgent -->|"Rich Cards / Text Response"| Widget
+    Carousel -->|"Image Carousel Card"| Widget
+    ShopAgent & FeedAgent -->|"Text Response"| Widget
 ```
 
 ---
@@ -96,8 +102,7 @@ ShoppingAssistantAgent/
 │   │   ├── instruction.txt          # Product discovery, cart & memory-write prompt (<role>, <step>)
 │   │   ├── before_agent_callbacks/  # Hook: Seeding context for ShoppingAssistant
 │   │   ├── before_tool_callbacks/   # Hook: Argument sanitization
-│   │   ├── after_tool_callbacks/    # Hook: Server-side cart arithmetic & feedback state
-│   │   └── after_model_callbacks/   # Hook: Rich Info Card payload formatting
+│   │   └── after_tool_callbacks/    # Hook: Server-side cart arithmetic & search_results/feedback state
 │   └── FeedbackAgent/
 │       ├── FeedbackAgent.json       # FeedbackAgent manifest, tools & toolsets
 │       ├── instruction.txt          # Feedback collection & memory-write prompt (<role>, <step>)
@@ -122,8 +127,10 @@ ShoppingAssistantAgent/
 │   ├── submit_feedback/
 │   │   ├── submit_feedback.json
 │   │   └── python_function/python_code.py
-│   └── end_session/
-│       └── end_session.json        # CXAS Client Tool Manifest (clientFunction)
+│   ├── end_session/
+│   │   └── end_session.json        # CXAS Client Tool Manifest (clientFunction)
+│   └── show_product_carousel/
+│       └── show_product_carousel.json  # CXAS Widget Tool (widgetTool, PRODUCT_CAROUSEL) — model-invoked, platform-rendered
 ├── toolsets/                         # CXAS OpenAPI toolsets — platform-executed HTTP calls (not sandboxed)
 │   ├── fetch_user_profile/
 │   │   ├── fetch_user_profile.json           # Toolset manifest (openApiToolset)
@@ -230,19 +237,26 @@ Wrapping an external REST endpoint for CXAS to call requires care — the two re
 - Binding a toolset to an agent uses the agent manifest's separate `toolsets` array (`[{"toolset": "<name>", "toolIds": ["<operationId>"]}]`), **not** the `tools` array — a plain tool-name string there will hard-fail the push with `Reference '<name>' of type 'ces.googleapis.com/Tool' not found.`
 - **Schema gotcha**: a request-body property typed as a schemaless `{"type": "object"}` silently arrives as `{}` server-side — the platform's OpenAPI executor only forwards fields it can resolve through explicit nested `properties`. Any object-typed request body field needs its full shape spelled out in the schema (see `toolsets/add_user_memory/open_api_toolset/open_api_schema.yaml` for a worked example) or the actual data gets dropped in transit while the call still reports success. Note this is specific to nested *objects* — a top-level array-of-strings field (e.g. `update_user_preferences`'s `preferred_categories: string[]`) passes through fine without needing extra structure.
 
-### 3. Native SCRAPI Deployment Pipeline (`scripts/build_app.py`)
+### 3. Widget Tools — Rich UI Without a Callback (`tools/show_product_carousel/`)
+Product images are rendered via a `WidgetTool` (`tools/show_product_carousel/`), not a callback formatting a custom JSON payload — an earlier version tried exactly that (`after_model_callback` building a `custom_payload`/`rich_widgets` field) and it could never have worked: proven via live instrumentation that `after_model_callback`'s state view only reflects what was already persisted *before* the current turn began, never `search_results`/`cart`/`discount_pct` set by tools called earlier in the same turn. The callback and its `afterModelCallbacks` registration have been removed.
+- `WidgetTool` is a oneof variant on the `Tool` resource — same family as `pythonFunction`/`openApiTool` — so it lives under `tools/<name>/<name>.json` like any other tool, no separate `widgets/` directory (one doesn't exist in `cxas push`'s bundle; if it did, files there would be silently dropped, the same class of bug hit with toolsets/guardrails).
+- The model calls it directly, the same way it calls `add_to_cart` — no callback, no state read, no timing issue. `ShoppingAssistant`'s instruction tells it to call `show_product_carousel` right after `search_catalog`, building `productDetails` from the results it just saw in that tool's own response.
+- The platform ships pre-built `widgetType`s for common patterns (`PRODUCT_CAROUSEL`, `PRODUCT_DETAILS`, `ORDER_SUMMARY`, `QUICK_ACTIONS`, etc.) with a fixed `parameters` schema per type — this repo uses `PRODUCT_CAROUSEL` (`productDetails: [{title, subtitle, price, productId, imageUris, uri}]`).
+- `cxas-scrapi`'s scaffolding CLI has no widget template yet. The reliable way to get the exact parameter schema for a given `widgetType` is to build one once in CX Agent Studio's Widgets panel, then `cxas pull <app> --target-dir <scratch-dir>` (into a **separate** directory, not `--overwrite` on the repo) and copy the generated `tools/<name>/<name>.json` in — that's how this one was created.
+
+### 4. Native SCRAPI Deployment Pipeline (`scripts/build_app.py`)
 Deploying an application via `python scripts/build_app.py --env <dev|staging|prod>` (or via GitHub Actions CD) executes a two-phase process:
 1. **Pre-Flight Quality Gates**: Automatically cleans `__pycache__`, executes the unit test suite (`python -m unittest discover tests/`), and runs schema validation (`scripts/validate_schemas.py`). If any test fails, deployment is aborted before reaching GCP.
 2. **Native SCRAPI CLI Push (`cxas push`)**: Resolves the target app resource path (`projects/{project}/locations/{location}/apps/{app_id}`) from `gecx-config.toml` and delegates synchronization directly to the native `cxas push` CLI toolchain.
 3. **Toolset Binding Reconciliation**: `cxas push`'s bulk import correctly creates/updates `Toolset` resources but silently drops each agent's `toolsets` binding declared in its manifest (a known gap in the current `cxas-scrapi` bulk-import path). `build_app.py` re-applies these bindings after every push via a direct Agent Service API call (`update_agent` with an explicit field mask), reading the `toolsets` array straight out of each `agents/*/*.json`. This step is generic — any agent/toolset pair declared in the manifests gets reconciled automatically, no script changes needed when adding a new toolset.
 
-### 4. CXAS Session Variable Mutation Patterns
+### 5. CXAS Session Variable Mutation Patterns
 State persistence across agents and turns follows specific CXAS platform rules:
 - **App-Scoped State**: All session variables (such as `cart`, `user_name`, `membership_tier`) are declared globally at the App level (`app.json`). Once declared, state is shared transparently across Root and sub-agents during handoffs.
 - **Tool State Mutation via `context.state`**: Python tools must explicitly mutate state using `context.state["cart"] = cart` (or `set_variable("cart", cart)`). Returning dictionary payloads containing `{"updatedVariables": ...}` alone does not persist state across turns in the CXAS Agent Engine runtime.
 - **Robust Callback State Helpers**: Callback helper functions (`get_state`, `set_state_var`) must handle both standard Python `dict` types and CXAS runtime mapping objects (`MapComposite`, `State`). State setters must avoid returning early when encountering dictionary targets so that updates commit directly to `callback_context.state`.
 
-### 5. RootAgent Never Answers Directly
+### 6. RootAgent Never Answers Directly
 `RootAgent` only detects intent and transfers — it has no `fetch_user_profile` binding and never will (see below). Every user-facing response, including a bare "hello", must come from a sub-agent that owns the relevant personalization/tools. Concretely: bare greetings transfer to `ShoppingAssistant` rather than `RootAgent` replying with a generic message itself — the earlier version did the latter, and since `RootAgent` never fetches the profile, greetings were silently never personalized. `scripts/smoke_test_routing.py` exists specifically to catch a regression of this kind, since `evaluations/run_evals.py` never exercises `RootAgent`'s routing at all.
 
 Deliberately **not** giving `RootAgent` its own `fetch_user_profile` call, even to greet by name pre-routing: `RootAgent` runs on literally every turn, so it would either fetch on every single message (redundant — `ShoppingAssistant` already fetches once on entry) or need conditional "only fetch if about to greet" logic that reimplements what routing already decides. It would also tax every `FeedbackAgent`-only session with a Firestore round-trip it never uses.

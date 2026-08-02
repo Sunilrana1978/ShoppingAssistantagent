@@ -46,10 +46,5 @@
     {
       "pythonCode": "agents/ShoppingAssistant/after_tool_callbacks/after_tool_callbacks_01/python_code.py"
     }
-  ],
-  "afterModelCallbacks": [
-    {
-      "pythonCode": "agents/ShoppingAssistant/after_model_callbacks/after_model_callbacks_01/python_code.py"
-    }
   ]
 }
