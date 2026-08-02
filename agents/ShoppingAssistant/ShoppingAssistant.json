@@ -23,6 +23,12 @@
       "toolIds": [
         "add_user_memory"
       ]
+    },
+    {
+      "toolset": "update_user_preferences",
+      "toolIds": [
+        "update_user_preferences"
+      ]
     }
   ],
   "beforeAgentCallbacks": [

@@ -131,5 +131,17 @@ def after_tool_callback(
         name = tool_output.get("user_name") or tool_output.get("name") or "Shopper"
         set_state_var(context_obj, "user_name", name)
         set_state_var(context_obj, "membership_tier", tool_output.get("membership_tier", "none"))
+        set_state_var(context_obj, "long_term_memories", tool_output.get("memories", []))
+        set_state_var(context_obj, "preferences", tool_output.get("preferences", {}))
+
+    elif tool_name in ("add_user_memory", "add_user_memory_add_user_memory"):
+        if tool_output.get("status") == "success" and "fact" in tool_output:
+            existing = state.get("long_term_memories") or []
+            if isinstance(existing, list) and tool_output["fact"] not in existing:
+                set_state_var(context_obj, "long_term_memories", existing + [tool_output["fact"]])
+
+    elif tool_name in ("update_user_preferences", "update_user_preferences_update_user_preferences"):
+        if tool_output.get("status") == "success" and "preferences" in tool_output:
+            set_state_var(context_obj, "preferences", tool_output["preferences"])
 
     return tool_output

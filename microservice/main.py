@@ -35,6 +35,15 @@ class AddMemoryRequest(BaseModel):
 class SaveCartRequest(BaseModel):
     cart: Dict[str, Any] = Field(..., description="Cart snapshot dict")
 
+class UpdatePreferencesRequest(BaseModel):
+    preferred_categories: Optional[List[str]] = Field(None, description="Product categories the user favors (e.g. shoes, apparel, equipment)")
+    preferred_sports: Optional[List[str]] = Field(None, description="Sports/activities the user is interested in")
+    preferred_brands: Optional[List[str]] = Field(None, description="Brands the user favors")
+    shoe_size: Optional[str] = Field(None, description="Preferred shoe size")
+    apparel_size: Optional[str] = Field(None, description="Preferred apparel size")
+    equipment_size: Optional[str] = Field(None, description="Preferred equipment size (e.g. racket grip)")
+    price_max: Optional[float] = Field(None, description="Approximate budget ceiling the user is comfortable with")
+
 class WebhookRequest(BaseModel):
     session_id: Optional[str] = None
     user_id: Optional[str] = None
@@ -62,7 +71,8 @@ def get_user_profile(user_id: str = Path(..., description="Unique user identifie
         "user_name": profile.get("user_name") or profile.get("name", "Shopper"),
         "membership_tier": profile.get("membership_tier", "none"),
         "memories": profile.get("memories", []),
-        "previous_cart": profile.get("previous_cart", {})
+        "previous_cart": profile.get("previous_cart", {}),
+        "preferences": profile.get("preferences", {})
     }
 
 
@@ -92,6 +102,21 @@ def save_user_cart(
     if not success:
         raise HTTPException(status_code=400, detail="Failed to save cart snapshot")
     return {"status": "success", "user_id": user_id, "cart": payload.cart}
+
+
+@app.post("/api/v1/users/{user_id}/preferences", tags=["Preferences"])
+def update_user_preferences(
+    user_id: str = Path(..., description="Unique user identifier"),
+    payload: UpdatePreferencesRequest = Body(...)
+):
+    """
+    Merge partial preference updates (categories, sports, brands, sizes, budget)
+    into the user's profile in Firestore. List fields are unioned with existing
+    values; scalar fields overwrite. Returns the full merged preferences object.
+    """
+    updates = payload.model_dump(exclude_none=True)
+    preferences = firestore_service.update_user_preferences(user_id, updates)
+    return {"status": "success", "user_id": user_id, "preferences": preferences}
 
 
 @app.post("/api/v1/webhooks/before-agent", tags=["CXAS Webhooks"])

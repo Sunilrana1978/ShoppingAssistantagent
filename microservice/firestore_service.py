@@ -20,7 +20,8 @@ DEFAULT_MOCK_USERS = {
         "user_name": "Alex",
         "membership_tier": "gold",
         "memories": [],
-        "previous_cart": {}
+        "previous_cart": {},
+        "preferences": {}
     },
     "u_1030": {
         "user_id": "u_1030",
@@ -28,7 +29,8 @@ DEFAULT_MOCK_USERS = {
         "user_name": "Jordan",
         "membership_tier": "silver",
         "memories": [],
-        "previous_cart": {}
+        "previous_cart": {},
+        "preferences": {}
     },
     "u_1031": {
         "user_id": "u_1031",
@@ -36,7 +38,8 @@ DEFAULT_MOCK_USERS = {
         "user_name": "Taylor",
         "membership_tier": "bronze",
         "memories": [],
-        "previous_cart": {}
+        "previous_cart": {},
+        "preferences": {}
     },
     "guest": {
         "user_id": "guest",
@@ -44,7 +47,8 @@ DEFAULT_MOCK_USERS = {
         "user_name": "Guest Customer",
         "membership_tier": "none",
         "memories": [],
-        "previous_cart": {}
+        "previous_cart": {},
+        "preferences": {}
     }
 }
 
@@ -136,6 +140,36 @@ class FirestoreService:
             return self.save_user_profile(user_id, profile)
 
         return True
+
+    def update_user_preferences(self, user_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+        """Merge partial preference updates into the user's profile in Firestore.
+
+        List fields (preferred_categories, preferred_sports, preferred_brands) are
+        unioned with existing values; scalar fields (sizes, price_max) overwrite.
+        """
+        if not user_id:
+            return {}
+
+        user_id = user_id.strip('"').strip("'").strip()
+        profile = self.get_user_profile(user_id)
+        preferences: Dict[str, Any] = dict(profile.get("preferences", {}))
+
+        list_fields = ("preferred_categories", "preferred_sports", "preferred_brands")
+        for field in list_fields:
+            new_values = updates.get(field)
+            if new_values:
+                existing = preferences.get(field, [])
+                preferences[field] = list(dict.fromkeys(existing + [v for v in new_values if v]))
+
+        scalar_fields = ("shoe_size", "apparel_size", "equipment_size", "price_max")
+        for field in scalar_fields:
+            value = updates.get(field)
+            if value is not None:
+                preferences[field] = value
+
+        profile["preferences"] = preferences
+        self.save_user_profile(user_id, profile)
+        return preferences
 
     def save_user_cart(self, user_id: str, cart_data: Dict[str, Any]) -> bool:
         """Save cross-session cart snapshot to user profile in Firestore."""

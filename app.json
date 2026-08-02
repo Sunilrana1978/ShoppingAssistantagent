@@ -148,11 +148,50 @@
     },
     {
       "name": "long_term_memories",
-      "description": "Recalled long-term memory facts from Vertex AI Memory Bank for the current user.",
+      "description": "Recalled long-term memory facts for the current user, fetched from Firestore via fetch_user_profile.",
       "schema": {
         "type": "ARRAY",
         "items": {
           "type": "STRING"
+        }
+      }
+    },
+    {
+      "name": "preferences",
+      "description": "Structured shopping preferences for the current user (categories, sports, brands, sizes, budget), fetched from Firestore via fetch_user_profile and updated via update_user_preferences.",
+      "schema": {
+        "type": "OBJECT",
+        "properties": {
+          "preferred_categories": {
+            "type": "ARRAY",
+            "items": {
+              "type": "STRING"
+            }
+          },
+          "preferred_sports": {
+            "type": "ARRAY",
+            "items": {
+              "type": "STRING"
+            }
+          },
+          "preferred_brands": {
+            "type": "ARRAY",
+            "items": {
+              "type": "STRING"
+            }
+          },
+          "shoe_size": {
+            "type": "STRING"
+          },
+          "apparel_size": {
+            "type": "STRING"
+          },
+          "equipment_size": {
+            "type": "STRING"
+          },
+          "price_max": {
+            "type": "NUMBER"
+          }
         }
       }
     }

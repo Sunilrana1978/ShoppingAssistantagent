@@ -34,6 +34,38 @@ def test_add_user_memory():
     assert data["status"] == "success"
     assert data["user_id"] == "u_1029"
 
+def test_update_user_preferences_merges_and_dedupes():
+    response = client.post("/api/v1/users/u_1029/preferences", json={
+        "preferred_categories": ["shoes"],
+        "preferred_sports": ["running"],
+        "shoe_size": "10",
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert data["preferences"]["preferred_categories"] == ["shoes"]
+    assert data["preferences"]["shoe_size"] == "10"
+
+    # A second, overlapping update should union list fields and overwrite scalars
+    response2 = client.post("/api/v1/users/u_1029/preferences", json={
+        "preferred_categories": ["shoes", "apparel"],
+        "shoe_size": "11",
+        "price_max": 150.0,
+    })
+    assert response2.status_code == 200
+    data2 = response2.json()
+    assert data2["preferences"]["preferred_categories"] == ["shoes", "apparel"]
+    assert data2["preferences"]["shoe_size"] == "11"
+    assert data2["preferences"]["price_max"] == 150.0
+    # preferred_sports from the first call should still be present (merge, not overwrite)
+    assert data2["preferences"]["preferred_sports"] == ["running"]
+
+def test_get_user_profile_includes_preferences():
+    response = client.get("/api/v1/users/u_1029")
+    assert response.status_code == 200
+    data = response.json()
+    assert "preferences" in data
+
 def test_before_agent_webhook():
     payload = {
         "state": {

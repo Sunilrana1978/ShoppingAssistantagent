@@ -43,7 +43,19 @@
                       "type": "array",
                       "items": { "type": "string" }
                     },
-                    "previous_cart": { "type": "object" }
+                    "previous_cart": { "type": "object" },
+                    "preferences": {
+                      "type": "object",
+                      "properties": {
+                        "preferred_categories": { "type": "array", "items": { "type": "string" } },
+                        "preferred_sports": { "type": "array", "items": { "type": "string" } },
+                        "preferred_brands": { "type": "array", "items": { "type": "string" } },
+                        "shoe_size": { "type": "string" },
+                        "apparel_size": { "type": "string" },
+                        "equipment_size": { "type": "string" },
+                        "price_max": { "type": "number" }
+                      }
+                    }
                   }
                 }
               }
