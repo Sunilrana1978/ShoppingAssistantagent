@@ -1,0 +1,14 @@
+{
+  "displayName": "rule_no_unconfirmed_cart_actions",
+  "description": "Blocks confirming a cart/purchase action without a successful tool call.",
+  "enabled": true,
+  "llmPolicy": {
+    "prompt": "The agent must never confirm a cart addition or purchase transaction unless the add_to_cart tool has been successfully called and returned a confirmation.",
+    "policyScope": "AGENT_RESPONSE"
+  },
+  "action": {
+    "generativeAnswer": {
+      "prompt": "Let the user know you are processing their request and will confirm once the action is completed successfully."
+    }
+  }
+}

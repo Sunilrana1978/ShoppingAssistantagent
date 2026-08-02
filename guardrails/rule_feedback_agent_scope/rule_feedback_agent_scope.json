@@ -1,0 +1,14 @@
+{
+  "displayName": "rule_feedback_agent_scope",
+  "description": "Keeps FeedbackAgent scoped to feedback/ratings only.",
+  "enabled": true,
+  "llmPolicy": {
+    "prompt": "The agent must stay within the scope of collecting product feedback and star ratings. It must not answer questions about orders, refunds, account issues, or product availability.",
+    "policyScope": "AGENT_RESPONSE"
+  },
+  "action": {
+    "generativeAnswer": {
+      "prompt": "Let the user know you can only assist with product feedback and ratings today, and direct other enquiries to customer support."
+    }
+  }
+}

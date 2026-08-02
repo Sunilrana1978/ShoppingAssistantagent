@@ -196,6 +196,20 @@
       }
     }
   ],
+  "guardrails": [
+    "prompt_guard",
+    "competitor_blocklist",
+    "pii_credit_card_blocklist",
+    "pii_ssn_blocklist",
+    "profanity_blocklist",
+    "rule_no_unconfirmed_pricing",
+    "rule_stay_on_topic",
+    "rule_no_unconfirmed_cart_actions",
+    "rule_always_apply_discount",
+    "rule_no_medical_advice",
+    "rule_feedback_requires_confirmation",
+    "rule_feedback_agent_scope"
+  ],
   "timeZoneSettings": {
     "timeZone": "America/Los_Angeles"
   }

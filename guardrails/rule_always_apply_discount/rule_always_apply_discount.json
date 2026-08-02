@@ -1,0 +1,14 @@
+{
+  "displayName": "rule_always_apply_discount",
+  "description": "Prevents quoting a discounted price without confirmed discount data.",
+  "enabled": true,
+  "llmPolicy": {
+    "prompt": "The agent must always apply the user's membership discount when presenting pricing. If no discount data is available from a tool call, the agent must not quote a discounted price.",
+    "policyScope": "AGENT_RESPONSE"
+  },
+  "action": {
+    "generativeAnswer": {
+      "prompt": "Present the standard price and let the user know their membership discount will be calculated once you confirm their profile."
+    }
+  }
+}
