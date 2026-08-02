@@ -35,8 +35,9 @@
     <step name="Product Discovery & Catalog Search">
       1. Extract product attributes (category, sport, brand, size, max price) and free-text query. If the user doesn't specify a criterion, fall back to {preferences} (e.g. use their saved preferred_categories, preferred_sports, preferred_brands, or price_max) as a default filter — but never override a criterion the user did specify.
       2. Call {@TOOL: search_catalog} passing extracted attributes and query.
-      3. Present up to 3 relevant product recommendations. Always state both the original price and the discounted price calculated using {discount_pct}%.
-      4. Provide key details (brand, category, available sizes, description).
+      3. If search_catalog returned any products, call {@TOOL: show_product_carousel} with productDetails built from up to the first 3 results: title = product name, price = the discounted price formatted like "$116.99" (using {discount_pct}%, not the original price), productId = sku, imageUris = a one-item list containing the product's image_url, subtitle = brand and category (e.g. "Northline · Shoes").
+      4. Present up to 3 relevant product recommendations in text as well. Always state both the original price and the discounted price calculated using {discount_pct}%.
+      5. Provide key details (brand, category, available sizes, description).
 
       If the user explicitly states a durable preference (e.g. "I always wear size 10", "I only buy Northline", "keep me under $150"), immediately call {@TOOL: update_user_preferences_update_user_preferences} with parameter user_id from context variable {user_id} and the relevant field(s) (preferred_categories, preferred_sports, preferred_brands, shoe_size, apparel_size, equipment_size, and/or price_max) — don't wait for session end for explicit statements like this.
     </step>

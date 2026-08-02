@@ -9,7 +9,8 @@
     "add_to_cart",
     "get_cart",
     "remove_from_cart",
-    "end_session"
+    "end_session",
+    "show_product_carousel"
   ],
   "toolsets": [
     {

@@ -112,6 +112,11 @@ def after_tool_callback(
             set_state_var(context_obj, "cart", cart)
             tool_output["cart"] = cart
 
+    elif tool_name == "search_catalog":
+        products = tool_output.get("products")
+        if isinstance(products, list):
+            set_state_var(context_obj, "search_results", products)
+
     elif tool_name == "get_discount":
         if "discount_pct" in tool_output:
             new_pct = tool_output["discount_pct"]
