@@ -13,7 +13,7 @@ The application features a **Multi-Agent Router Architecture** driven by natural
 - **Customer Feedback Agent (`FeedbackAgent`)**: Collects 1 to 5 star ratings and customer feedback comments, logging them into analytics.
 - **App-level Guardrails**: Centrally manages security using Custom Prompt Guards (jailbreak/injection filters), deterministic Blocklists (PII, competitor brands, and profanity), and natural-language Rules across all agents.
 - **Logging & Observability**: Configured Cloud Logging with 1-year retention and automatic BigQuery analytics export to analyze conversation flows, intent statistics, and user interactions.
-- **Persistent User Memory (Firestore)**: A Cloud Run microservice backed by Firestore stores durable, natural-language facts about each user — preferences, interests, and past interaction summaries — recalled via `fetch_user_profile` and written via `add_user_memory`, so future sessions can give better recommendations. The live shopping cart itself stays session-scoped and is never persisted.
+- **Persistent User Memory (Firestore)**: A Cloud Run microservice backed by Firestore stores two kinds of durable knowledge per user — free-text interaction facts (`add_user_memory`) and structured shopping preferences (`update_user_preferences`: categories, sports, brands, sizes, budget) — both recalled via `fetch_user_profile` so future sessions can give better recommendations. The live shopping cart itself stays session-scoped and is never persisted.
 - **Membership Discount Engine**: Automatically applies member discounts (**Gold: 15%**, **Silver: 10%**, **Bronze: 5%**, **Guest: 0%**) to product prices and cart totals.
 - **Server-Side Pricing Math**: Calculates exact float arithmetic for cart subtotals, discount amounts, and grand totals server-side via callback functions.
 - **Rich Response Widgets**: Renders product recommendations and cart line items as structured, image-bearing Info Card UI widgets.
@@ -31,32 +31,42 @@ flowchart LR
     end
 
     subgraph Router["2. Router Agent Layer"]
-        Root["RootAgent (Supervisor)\n- Intent Detection\n- Sub-agent Routing"]
+        Root["RootAgent (Supervisor)\nIntent Detection & Routing\n(always transfers —\nnever answers directly)"]
     end
 
     subgraph DomainAgents["3. Specialized Domain Agents"]
-        ShopAgent["ShoppingAssistant Agent\n(Catalog Search & Cart)"]
-        FeedAgent["FeedbackAgent\n(Rating & Feedback Collection)"]
+        ShopAgent["ShoppingAssistant\n(Discovery, Cart,\nPersonalization)"]
+        FeedAgent["FeedbackAgent\n(Rating & Feedback)"]
     end
 
-    subgraph ToolsHooks["4. Callbacks & Tools Layer"]
-        ShopTools["Shopping Tools\n(Profile, Discount, Search, Cart)"]
-        FeedTools["Feedback Tools\n(submit_feedback)"]
-        Callbacks["Python Callbacks\n(before_agent, after_tool, after_model)"]
+    subgraph Sandbox["4. pythonFunction Tools & Callbacks\n(sandboxed — zero network egress)"]
+        PyTools["get_discount, search_catalog,\nadd/remove/get_cart, submit_feedback"]
+        Callbacks["before_agent / before_tool /\nafter_tool / after_model callbacks"]
+        MockData[("JSON Mock Catalog &\nSession Cart State")]
+        PyTools --> MockData
+        Callbacks --> MockData
     end
 
-    subgraph DataStore["5. Service & Data Tier"]
-        Services["Services (User, Discount, Catalog, Cart, Feedback)"]
-        Storage[("JSON Data Store &\nSession Cart Memory")]
-        Services --> Storage
+    subgraph Toolsets["5. OpenAPI Toolsets\n(platform-native HTTP — not sandboxed)"]
+        FetchProfile["fetch_user_profile"]
+        AddMemory["add_user_memory"]
+        UpdatePrefs["update_user_preferences"]
+    end
+
+    subgraph Memory["6. Persistent Memory Tier"]
+        Microservice["shopping-user-service\n(FastAPI on Cloud Run)"]
+        Firestore[("Firestore\nuser_profiles collection")]
+        Microservice --> Firestore
     end
 
     Widget -->|"User Message"| Root
-    Root -->|"Intent: Shop / Browse"| ShopAgent
-    Root -->|"Intent: Feedback / Review"| FeedAgent
-    ShopAgent --> ShopTools
-    FeedAgent --> FeedTools
-    ShopTools & FeedTools --> Callbacks --> Services
+    Root --> ShopAgent
+    Root --> FeedAgent
+    ShopAgent --> PyTools
+    ShopAgent --> FetchProfile & AddMemory & UpdatePrefs
+    FeedAgent --> PyTools
+    FeedAgent --> AddMemory
+    FetchProfile & AddMemory & UpdatePrefs --> Microservice
     ShopAgent & FeedAgent -->|"Rich Cards / Text Response"| Widget
 ```
 
@@ -118,10 +128,13 @@ ShoppingAssistantAgent/
 │   ├── fetch_user_profile/
 │   │   ├── fetch_user_profile.json           # Toolset manifest (openApiToolset)
 │   │   └── open_api_toolset/open_api_schema.yaml  # GET /api/v1/users/{user_id}
-│   └── add_user_memory/
-│       ├── add_user_memory.json
-│       └── open_api_toolset/open_api_schema.yaml  # POST /api/v1/users/{user_id}/memories
-├── microservice/                     # FastAPI + Firestore backend for fetch_user_profile / add_user_memory
+│   ├── add_user_memory/
+│   │   ├── add_user_memory.json
+│   │   └── open_api_toolset/open_api_schema.yaml  # POST /api/v1/users/{user_id}/memories
+│   └── update_user_preferences/
+│       ├── update_user_preferences.json
+│       └── open_api_toolset/open_api_schema.yaml  # POST /api/v1/users/{user_id}/preferences
+├── microservice/                     # FastAPI + Firestore backend for the three toolsets above
 │   ├── main.py                      # REST endpoints consumed by the OpenAPI toolsets above
 │   ├── firestore_service.py         # Firestore read/write layer
 │   ├── Dockerfile / deploy.sh       # Cloud Run deployment (`shopping-user-service`)
@@ -153,6 +166,7 @@ ShoppingAssistantAgent/
     │                                 # re-applies agent↔toolset bindings after push (see below)
     ├── push_all_evals.py            # Syncs all Golden & Scenario evals to CXAS
     ├── test_interactive_session.py  # Interactive multi-agent demo simulation
+    ├── smoke_test_routing.py        # Live routing check against a deployed app (see Testing)
     └── validate_schemas.py          # Schema & manifest validation script
 ```
 
@@ -175,21 +189,28 @@ All guardrail boundaries and analytics logging settings are defined globally at 
 
 ## 🧠 Persistent User Memory (Firestore)
 
-**Design principle:** the live shopping cart is session-scoped only (CXAS session state, `{cart}`) and is *never* written to Firestore. Firestore exists solely to hold durable, natural-language *knowledge* about a user — preferences, interests, and interaction summaries — so future sessions can give better recommendations. This intentionally keeps the two concerns (transient cart state vs. durable user knowledge) separate and avoids syncing the cart on every add/remove.
+**Design principle:** the live shopping cart is session-scoped only (CXAS session state, `{cart}`) and is *never* written to Firestore. Firestore exists solely to hold durable *knowledge* about a user — across two complementary channels — so future sessions can give better recommendations. This intentionally keeps transient cart state separate from durable user knowledge and avoids syncing the cart on every add/remove.
 
-### 1. Read & write paths
-- **`fetch_user_profile`** (`toolsets/fetch_user_profile/`, OpenAPI toolset): called at the start of a `ShoppingAssistant` session with `user_id`, returns `user_name`, `membership_tier`, and `memories: []` — a list of short facts from past sessions — which seed `{long_term_memories}` for the model to reference.
-- **`add_user_memory`** (`toolsets/add_user_memory/`, OpenAPI toolset): called by the model to append one new natural-language fact to that same list. Bound to both `ShoppingAssistant` and `FeedbackAgent`.
-- Both wrap REST endpoints on the `shopping-user-service` Cloud Run microservice (`microservice/`), which reads/writes the `user_profiles` collection in Firestore.
+### 1. Two memory channels
+- **Free-text facts** (`memories: []`) — short natural-language sentences for narrative/episodic context that doesn't fit a fixed shape (e.g. *"Rated shopping experience 5/5, praised product recommendations."*).
+- **Structured preferences** (`preferences: {}`) — bounded, overwritable fields aligned to `search_catalog`'s own filter parameters, so they can double as default search filters, not just stored trivia: `preferred_categories`, `preferred_sports`, `preferred_brands`, `shoe_size`, `apparel_size`, `equipment_size`, `price_max`.
 
-### 2. When memory gets written
-Because writes must be explicit model-invoked tool calls (see the sandboxing note below — a callback cannot make this HTTP call itself), the instructions trigger `add_user_memory` at natural, reliably-detectable conversation milestones rather than on every action:
-- **`FeedbackAgent`**, right after `submit_feedback` succeeds — a deterministic, always-fires trigger — writes a fact summarizing the rating/sentiment.
-- **`ShoppingAssistant`**, when the user signals they're wrapping up the session (goodbye, "that's all", etc.) — writes one consolidated fact about what was browsed/added to cart this session, only if there was meaningful activity.
+### 2. Read & write paths
+- **`fetch_user_profile`** (`toolsets/fetch_user_profile/`): called at the start of a `ShoppingAssistant` session with `user_id`, returns `user_name`, `membership_tier`, `memories`, and `preferences` — which seed `{long_term_memories}` and `{preferences}` for the model to reference.
+- **`add_user_memory`** (`toolsets/add_user_memory/`): appends one new free-text fact. Bound to both `ShoppingAssistant` and `FeedbackAgent`.
+- **`update_user_preferences`** (`toolsets/update_user_preferences/`): merges partial preference updates — list fields (`preferred_*`) are unioned + deduped with existing values, scalar fields (sizes, `price_max`) overwrite. Bound to `ShoppingAssistant` only.
+- All three wrap REST endpoints on the `shopping-user-service` Cloud Run microservice (`microservice/`), which reads/writes the `user_profiles` collection in Firestore.
 
-### 3. Example
-*Session 1*: user `u_1030` (Jordan, Silver) adds a StormFlex jacket to cart, then says goodbye. `ShoppingAssistant` calls `add_user_memory` with: *"Jordan (Silver member) showed interest in the StormFlex Waterproof Trail Jacket and added it to the cart."*
-*Session 2*: a new session for `u_1030` calls `fetch_user_profile`, which returns that fact in `memories`, letting the assistant reference it for personalized recommendations — without ever having persisted the cart itself.
+### 3. When each gets written
+Because writes must be explicit model-invoked tool calls (see the sandboxing note below — a callback cannot make this HTTP call itself), the instructions trigger writes at natural, reliably-detectable conversation milestones rather than on every action:
+- **`FeedbackAgent`**, right after `submit_feedback` succeeds — a deterministic, always-fires trigger — writes an `add_user_memory` fact summarizing the rating/sentiment.
+- **`ShoppingAssistant`**, `update_user_preferences` fires **immediately** when the user states an explicit preference mid-conversation ("I wear size 10", "keep me under $150") — no need to wait for session end.
+- **`ShoppingAssistant`**, at session close (goodbye, "that's all") — writes one consolidated `add_user_memory` fact, and falls back to `update_user_preferences` for any *inferred-but-unstated* signal (e.g. repeated searches for one sport) that wasn't already captured explicitly. Both are skipped for a session with no real activity.
+- `search_catalog` falls back to `{preferences}` as default filters whenever the user doesn't specify a criterion, without overriding one they did specify.
+
+### 4. Example
+*Session 1*: user `u_1030` (Jordan, Silver) states "I wear size 10, keep me under $150" — `update_user_preferences` fires immediately. Later, adds a StormFlex jacket to cart and says goodbye — `ShoppingAssistant` calls `add_user_memory` with: *"Jordan (Silver member) showed interest in the StormFlex Waterproof Trail Jacket and added it to the cart."*
+*Session 2*: a new session for `u_1030` calls `fetch_user_profile`, which returns both the fact (in `memories`) and `{shoe_size: "10", price_max: 150}` (in `preferences`) — letting the assistant personalize recommendations and pre-filter searches, without ever having persisted the cart itself.
 
 ---
 
@@ -199,7 +220,7 @@ Because writes must be explicit model-invoked tool calls (see the sandboxing not
 In **Gemini Enterprise for Customer Experience (CX Agent Studio / CES API)**, Python tools defined via `pythonFunction` run in an isolated execution sandbox hosted on Google Cloud.
 - **Self-Contained Tool Requirement**: Tool source files (`tools/<tool_name>/python_function/python_code.py`) MUST be self-contained and use standard Python libraries (`typing`, `json`, `datetime`, `random`, `math`). External local module imports (such as `from services...`) cause GCP's Python parser to fail with `400 Bad Request: No module named 'services'`, which prevents tools from being registered in Agent Studio.
 - **Embedded Mock Data**: Tools include inline mock data fallback structures for catalog, user profile, discount rates, cart memory, and feedback logging to ensure 100% standalone reliability on GCP while maintaining compatibility with local unit test suites.
-- **No outbound network access**: this sandbox (and the callback execution environment — `before_agent`/`after_tool`/etc. are plain Python running the same way) has *zero* egress — confirmed by direct testing: any `urllib`/`requests` call from inside a `pythonFunction` or callback fails immediately with DNS resolution or "network unreachable" errors, regardless of target host. Any call to an external HTTP API (like the Firestore microservice) **must** go through a CXAS OpenAPI tool/toolset instead — that's a platform-native call executed outside the sandbox, not sandboxed Python code. This is why `fetch_user_profile` and `add_user_memory` are `toolsets/` OpenAPI resources rather than `pythonFunction` tools that just call `requests.post(...)`.
+- **No outbound network access**: this sandbox (and the callback execution environment — `before_agent`/`after_tool`/etc. are plain Python running the same way) has *zero* egress — confirmed by direct testing: any `urllib`/`requests` call from inside a `pythonFunction` or callback fails immediately with DNS resolution or "network unreachable" errors, regardless of target host. Any call to an external HTTP API (like the Firestore microservice) **must** go through a CXAS OpenAPI tool/toolset instead — that's a platform-native call executed outside the sandbox, not sandboxed Python code. This is why `fetch_user_profile`, `add_user_memory`, and `update_user_preferences` are `toolsets/` OpenAPI resources rather than `pythonFunction` tools that just call `requests.post(...)`.
 
 ### 2. OpenAPI Tools vs. Toolsets (`toolsets/`)
 Wrapping an external REST endpoint for CXAS to call requires care — the two resource shapes are easy to conflate and the platform doesn't clearly error on the wrong one:
@@ -207,7 +228,7 @@ Wrapping an external REST endpoint for CXAS to call requires care — the two re
 - A **`Toolset`** (lives under `toolsets/<name>/`, schema at `toolsets/<name>/open_api_toolset/open_api_schema.yaml`) has an `openApiToolset` field and can expose *multiple* operations from one schema. In practice, pushing an OpenAPI-based tool config always gets created server-side as a `Toolset` (confirmed empirically), regardless of which field name was used locally — so OpenAPI tools in this repo consistently live under `toolsets/`, not `tools/`.
 - The resolved tool name the model actually calls is `{toolset_name}_{operationId}` (e.g. `fetch_user_profile_fetch_user_profile`) — that compound name is what `instruction.txt`'s `{@TOOL: ...}` placeholders must reference.
 - Binding a toolset to an agent uses the agent manifest's separate `toolsets` array (`[{"toolset": "<name>", "toolIds": ["<operationId>"]}]`), **not** the `tools` array — a plain tool-name string there will hard-fail the push with `Reference '<name>' of type 'ces.googleapis.com/Tool' not found.`
-- **Schema gotcha**: a request-body property typed as a schemaless `{"type": "object"}` silently arrives as `{}` server-side — the platform's OpenAPI executor only forwards fields it can resolve through explicit nested `properties`. Any object-typed request body field needs its full shape spelled out in the schema (see `toolsets/add_user_memory/open_api_toolset/open_api_schema.yaml` for a worked example) or the actual data gets dropped in transit while the call still reports success.
+- **Schema gotcha**: a request-body property typed as a schemaless `{"type": "object"}` silently arrives as `{}` server-side — the platform's OpenAPI executor only forwards fields it can resolve through explicit nested `properties`. Any object-typed request body field needs its full shape spelled out in the schema (see `toolsets/add_user_memory/open_api_toolset/open_api_schema.yaml` for a worked example) or the actual data gets dropped in transit while the call still reports success. Note this is specific to nested *objects* — a top-level array-of-strings field (e.g. `update_user_preferences`'s `preferred_categories: string[]`) passes through fine without needing extra structure.
 
 ### 3. Native SCRAPI Deployment Pipeline (`scripts/build_app.py`)
 Deploying an application via `python scripts/build_app.py --env <dev|staging|prod>` (or via GitHub Actions CD) executes a two-phase process:
@@ -220,6 +241,11 @@ State persistence across agents and turns follows specific CXAS platform rules:
 - **App-Scoped State**: All session variables (such as `cart`, `user_name`, `membership_tier`) are declared globally at the App level (`app.json`). Once declared, state is shared transparently across Root and sub-agents during handoffs.
 - **Tool State Mutation via `context.state`**: Python tools must explicitly mutate state using `context.state["cart"] = cart` (or `set_variable("cart", cart)`). Returning dictionary payloads containing `{"updatedVariables": ...}` alone does not persist state across turns in the CXAS Agent Engine runtime.
 - **Robust Callback State Helpers**: Callback helper functions (`get_state`, `set_state_var`) must handle both standard Python `dict` types and CXAS runtime mapping objects (`MapComposite`, `State`). State setters must avoid returning early when encountering dictionary targets so that updates commit directly to `callback_context.state`.
+
+### 5. RootAgent Never Answers Directly
+`RootAgent` only detects intent and transfers — it has no `fetch_user_profile` binding and never will (see below). Every user-facing response, including a bare "hello", must come from a sub-agent that owns the relevant personalization/tools. Concretely: bare greetings transfer to `ShoppingAssistant` rather than `RootAgent` replying with a generic message itself — the earlier version did the latter, and since `RootAgent` never fetches the profile, greetings were silently never personalized. `scripts/smoke_test_routing.py` exists specifically to catch a regression of this kind, since `evaluations/run_evals.py` never exercises `RootAgent`'s routing at all.
+
+Deliberately **not** giving `RootAgent` its own `fetch_user_profile` call, even to greet by name pre-routing: `RootAgent` runs on literally every turn, so it would either fetch on every single message (redundant — `ShoppingAssistant` already fetches once on entry) or need conditional "only fetch if about to greet" logic that reimplements what routing already decides. It would also tax every `FeedbackAgent`-only session with a Firestore round-trip it never uses.
 
 ---
 
@@ -242,7 +268,7 @@ uv pip install -e .
 ## 🧪 Testing & Verification
 
 ### Run CXAS Deterministic Linter
-Validates directory layout, protobuf schemas, tool configurations, and prompt structure (Target: 0 errors):
+Validates directory layout, protobuf schemas, tool configurations, and prompt structure (Target: 0 errors). Now run in CI (`.github/workflows/ci.yml`) via `pip install -e .`, so it always uses the pinned `cxas-scrapi` version — **do not** bump `cxas-scrapi` past `1.7.0` without checking first: `1.8.0` shipped a docstring-parsing bug in its V001/V004 schema-validation rules that misflags genuinely `Optional` fields (e.g. `OpenApiToolset.api_authentication`) as missing/required whenever their description text happens to contain the word "required" as prose:
 ```bash
 uv run cxas lint
 ```
@@ -260,7 +286,7 @@ uv run python -m unittest discover tests/
 ```
 
 ### Run Microservice Unit Tests
-Executes tests for the Firestore-backed `shopping-user-service` (`fetch_user_profile` / `add_user_memory` backend):
+Executes tests for the Firestore-backed `shopping-user-service` (`fetch_user_profile` / `add_user_memory` / `update_user_preferences` backend):
 ```bash
 cd microservice && pip install -r requirements.txt && pytest test_main.py
 ```
