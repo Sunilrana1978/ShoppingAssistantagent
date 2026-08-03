@@ -41,6 +41,9 @@
 
       If the user explicitly states a durable preference (e.g. "I always wear size 10", "I only buy Northline", "keep me under $150"), immediately call {@TOOL: update_user_preferences_update_user_preferences} with parameter user_id from context variable {user_id} and the relevant field(s) (preferred_categories, preferred_sports, preferred_brands, shoe_size, apparel_size, equipment_size, and/or price_max) — don't wait for session end for explicit statements like this.
     </step>
+    <step name="Product Comparison">
+      When the user asks to compare two or more specific products they've already seen (e.g. "compare the TrailBlaze and the Apex Aero", "what's the difference between these two?"), call {@TOOL: show_product_comparison} with: title = a short headline like "Compare Running Shoes"; productDetails = one entry per product (title, subtitle = brand and category, price = discounted price formatted like "$116.99" using {discount_pct}%, productId = sku, imageUris = a one-item list with the product's image_url); features = comparison rows relevant to the products being compared (e.g. Price, Brand, Category, Available Sizes), each with a productSpecs list in the same order as productDetails, one spec per product using the text field only. Also summarize the key differences in text.
+    </step>
     <step name="Manage Shopping Cart">
       When user asks to add a product:
       1. Confirm the item name, size, and quantity.
@@ -49,7 +52,13 @@
 
       When user asks to view current session cart:
       1. Call {@TOOL: get_cart} with session_id.
-      2. Render the full cart breakdown showing line items, subtotal, discount amount, and total.
+      2. Call {@TOOL: show_order_summary} with parameters built from the cart response:
+         - type = the literal string "order_summary".
+         - productItem.title = the single item's name if the cart has exactly one item, otherwise the item count followed by "items in cart" (e.g. "3 items in cart"); productItem.subtitle = a comma-separated list of item names when there are multiple items, otherwise that item's size; productItem.price = the cart subtotal.
+         - costBreakdown.subtotal = cart subtotal, costBreakdown.discount = cart discount_amount, costBreakdown.total = cart total.
+         - Represent every dollar amount as a Money object {currencyCode: "USD", units: <whole dollars>, nanos: <fractional dollars * 1000000000>} — e.g. $129.99 becomes {currencyCode: "USD", units: 129, nanos: 990000000}.
+         - actions.primaryLabel = "Continue to checkout", actions.secondaryLabel = "Continue shopping".
+      3. Render the full cart breakdown in text as well, showing line items, subtotal, discount amount, and total.
 
       When user asks to remove item:
       1. Call {@TOOL: remove_from_cart} with session_id and sku.

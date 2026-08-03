@@ -1,0 +1,186 @@
+{
+  "displayName": "show_order_summary",
+  "widgetTool": {
+    "name": "show_order_summary",
+    "description": "Display the current shopping cart as an order summary card, showing the primary product, cost breakdown (subtotal, discount, shipping, tax, total), and confirmation actions.",
+    "widgetType": "ORDER_SUMMARY",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "type": {
+          "type": "STRING",
+          "description": "REQUIRED. You MUST set this field literally to the string 'order_summary'. Do not omit it."
+        },
+        "productItem": {
+          "type": "OBJECT",
+          "description": "REQUIRED. Summary of the primary product being purchased.",
+          "required": ["title", "price"],
+          "properties": {
+            "title": {
+              "type": "STRING",
+              "description": "REQUIRED. The primary name of the product."
+            },
+            "subtitle": {
+              "type": "STRING",
+              "description": "Product variants like color, storage, or CPU."
+            },
+            "imageUri": {
+              "type": "STRING",
+              "description": "URL for the product thumbnail."
+            },
+            "price": {
+              "type": "OBJECT",
+              "description": "REQUIRED. The unit price of the item.",
+              "required": ["currencyCode", "units"],
+              "properties": {
+                "currencyCode": {
+                  "type": "STRING",
+                  "description": "REQUIRED. The three-letter currency code defined in ISO 4217 (e.g., 'USD')."
+                },
+                "units": {
+                  "type": "INTEGER",
+                  "description": "REQUIRED. The whole units of the amount."
+                },
+                "nanos": {
+                  "type": "INTEGER",
+                  "description": "Number of nano (10^-9) units of the amount."
+                }
+              }
+            }
+          }
+        },
+        "costBreakdown": {
+          "type": "OBJECT",
+          "description": "REQUIRED. Detailed financial breakdown of the order totals.",
+          "required": ["total"],
+          "properties": {
+            "subtotal": {
+              "type": "OBJECT",
+              "description": "The subtotal amount.",
+              "required": ["currencyCode", "units"],
+              "properties": {
+                "currencyCode": {
+                  "type": "STRING",
+                  "description": "REQUIRED. The three-letter currency code defined in ISO 4217 (e.g., 'USD')."
+                },
+                "units": {
+                  "type": "INTEGER",
+                  "description": "REQUIRED. The whole units of the amount."
+                },
+                "nanos": {
+                  "type": "INTEGER",
+                  "description": "Number of nano (10^-9) units of the amount."
+                }
+              }
+            },
+            "discount": {
+              "type": "OBJECT",
+              "description": "The total discount amount applied.",
+              "required": ["currencyCode", "units"],
+              "properties": {
+                "currencyCode": {
+                  "type": "STRING",
+                  "description": "REQUIRED. The three-letter currency code defined in ISO 4217 (e.g., 'USD')."
+                },
+                "units": {
+                  "type": "INTEGER",
+                  "description": "REQUIRED. The whole units of the amount."
+                },
+                "nanos": {
+                  "type": "INTEGER",
+                  "description": "Number of nano (10^-9) units of the amount."
+                }
+              }
+            },
+            "shipping": {
+              "type": "OBJECT",
+              "description": "The shipping cost. Set units to 0 for free shipping.",
+              "required": ["currencyCode", "units"],
+              "properties": {
+                "currencyCode": {
+                  "type": "STRING",
+                  "description": "REQUIRED. The three-letter currency code defined in ISO 4217 (e.g., 'USD')."
+                },
+                "units": {
+                  "type": "INTEGER",
+                  "description": "REQUIRED. The whole units of the amount."
+                },
+                "nanos": {
+                  "type": "INTEGER",
+                  "description": "Number of nano (10^-9) units of the amount."
+                }
+              }
+            },
+            "salesTax": {
+              "type": "OBJECT",
+              "description": "The sales tax amount.",
+              "required": ["currencyCode", "units"],
+              "properties": {
+                "currencyCode": {
+                  "type": "STRING",
+                  "description": "REQUIRED. The three-letter currency code defined in ISO 4217 (e.g., 'USD')."
+                },
+                "units": {
+                  "type": "INTEGER",
+                  "description": "REQUIRED. The whole units of the amount."
+                },
+                "nanos": {
+                  "type": "INTEGER",
+                  "description": "Number of nano (10^-9) units of the amount."
+                }
+              }
+            },
+            "total": {
+              "type": "OBJECT",
+              "description": "REQUIRED. The final amount to be charged after taxes, shipping, and discounts.",
+              "required": ["currencyCode", "units"],
+              "properties": {
+                "currencyCode": {
+                  "type": "STRING",
+                  "description": "REQUIRED. The three-letter currency code defined in ISO 4217 (e.g., 'USD')."
+                },
+                "units": {
+                  "type": "INTEGER",
+                  "description": "REQUIRED. The whole units of the amount."
+                },
+                "nanos": {
+                  "type": "INTEGER",
+                  "description": "Number of nano (10^-9) units of the amount."
+                }
+              }
+            }
+          }
+        },
+        "paymentMethod": {
+          "type": "OBJECT",
+          "description": "Optional details about the card or account to be charged.",
+          "properties": {
+            "brand": {
+              "type": "STRING",
+              "description": "The card brand, e.g., 'Visa', 'Mastercard', 'Apple Pay'."
+            },
+            "lastFour": {
+              "type": "STRING",
+              "description": "The last 4 digits of the card."
+            }
+          }
+        },
+        "actions": {
+          "type": "OBJECT",
+          "description": "Labels for the interaction buttons.",
+          "properties": {
+            "primaryLabel": {
+              "type": "STRING",
+              "description": "Label for the confirmation button (e.g., 'Place order')."
+            },
+            "secondaryLabel": {
+              "type": "STRING",
+              "description": "Label for the cancel/back button (e.g., 'Continue shopping')."
+            }
+          }
+        }
+      },
+      "required": ["type", "productItem", "costBreakdown"]
+    }
+  }
+}

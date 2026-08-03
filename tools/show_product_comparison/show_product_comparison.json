@@ -1,0 +1,111 @@
+{
+  "displayName": "show_product_comparison",
+  "widgetTool": {
+    "name": "show_product_comparison",
+    "description": "Display two or more products side-by-side as a comparison card, contrasting their key features (price, brand, sizes, specs) so the user can decide between them.",
+    "widgetType": "PRODUCT_COMPARISON",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "title": {
+          "type": "STRING",
+          "description": "The main headline for the entire comparison card. For example, \"Compare Running Shoes\"."
+        },
+        "productDetails": {
+          "type": "ARRAY",
+          "description": "A list of objects, where each object contains the core details of one product being compared.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "productId": {
+                "type": "STRING",
+                "description": "The unique identifier for this specific product."
+              },
+              "title": {
+                "type": "STRING",
+                "description": "The primary name of the product as listed (e.g., \"Men's Running Shoes\")."
+              },
+              "subtitle": {
+                "type": "STRING",
+                "description": "A longer, secondary line of text for additional context or description of the product."
+              },
+              "price": {
+                "type": "STRING",
+                "description": "The current selling price of the product."
+              },
+              "rating": {
+                "type": "NUMBER",
+                "description": "The average aggregate user rating for the product, typically on a scale of 1.0 to 5.0. Leave null if no ratings exist."
+              },
+              "imageUris": {
+                "type": "ARRAY",
+                "description": "A list of direct URLs to images displaying the product.",
+                "items": {
+                  "type": "STRING"
+                }
+              },
+              "uri": {
+                "type": "STRING",
+                "description": "The URL directing users to the full product detail page."
+              }
+            }
+          }
+        },
+        "features": {
+          "type": "ARRAY",
+          "description": "A list of objects, where each object contains the core details of one feature being compared. The order of productSpecs within each feature must correspond to the order of products in productDetails.",
+          "items": {
+            "type": "OBJECT",
+            "properties": {
+              "label": {
+                "type": "STRING",
+                "description": "The name of the feature being compared in this row (e.g., \"Cushioning\", \"Weight\")."
+              },
+              "productSpecs": {
+                "type": "ARRAY",
+                "description": "A list of specifications, one for each product being compared, detailing how it performs on this specific feature. Crucially, all productSpecs within this list should consistently use only one method (text, image, or anchor) across all products for this particular comparison row.",
+                "items": {
+                  "type": "OBJECT",
+                  "properties": {
+                    "text": {
+                      "type": "STRING",
+                      "description": "The text describing the feature specification of a specific product. For example, \"Lightweight mesh\" or \"10.5 oz\"."
+                    },
+                    "image": {
+                      "type": "OBJECT",
+                      "description": "An image that illustrates this specific feature spec. Use when the feature is best represented visually, and ensure all other productSpecs for this feature also use an image.",
+                      "properties": {
+                        "rawUrl": {
+                          "type": "STRING",
+                          "description": "The direct URL to the image."
+                        },
+                        "altText": {
+                          "type": "STRING",
+                          "description": "A descriptive text for the image, used for screen readers and accessibility."
+                        }
+                      }
+                    },
+                    "anchor": {
+                      "type": "OBJECT",
+                      "description": "A hyperlink for users to get more information about this feature. Use when the feature requires a link to more detailed information, and ensure all other productSpecs for this feature also use an anchor.",
+                      "properties": {
+                        "displayText": {
+                          "type": "STRING",
+                          "description": "The text to display for the hyperlink. For example, \"More about this feature\"."
+                        },
+                        "target": {
+                          "type": "STRING",
+                          "description": "The direct URL to the page containing more information about this feature."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
