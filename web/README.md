@@ -15,10 +15,18 @@ Then open http://localhost:8000 in a browser.
 
 ## Notes
 
-- The deployment's channel profile has `enable_public_access: True`, so the
-  widget works with no `accessToken` — the commented-out `accessToken` block
-  in `index.html` is inactive and left only as a reference for switching to a
-  token-based flow later.
+- The `chat-messenger` SDK always requires an `accessToken` client-side —
+  `enable_public_access` alone is not enough; without a token it fails with
+  `Error: No access token found.` before any network call is even made (no
+  console error, no network entry — the SDK swallows it).
+- This page sets `tokenBroker: { enableTokenBroker: true }` in `createContext`,
+  which makes the SDK auto-fetch a token itself by POSTing to the deployment's
+  public `:generateChatToken` REST endpoint. This only works unauthenticated
+  because the deployment's channel profile has `enable_public_access: True`
+  (and `enable_recaptcha: False`, so no reCAPTCHA widget is needed either). No
+  custom backend or manually-supplied token is required for this dev widget.
 - To point this page at a different deployment (e.g. staging/prod), swap the
-  `deploymentName` value in the inline `<script>` block.
+  `deploymentName` value in the inline `<script>` block — and make sure that
+  deployment's channel profile also has `enable_public_access: True`, or the
+  token broker will fail the same way.
 - This page is static — no build step, no dependencies.
