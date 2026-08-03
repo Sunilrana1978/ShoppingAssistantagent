@@ -19,6 +19,7 @@ The application features a **Multi-Agent Router Architecture** driven by natural
 - **Rich Response Widgets**: `ShoppingAssistant` calls a native CXAS `WidgetTool` (`tools/show_product_carousel/`) directly after `search_catalog`, rendering results as an image-bearing product carousel — a first-class platform tool the model invokes itself, not a callback formatting a custom payload.
 - **Service Abstraction Layer**: Data access is isolated behind `IUserService`, `IDiscountService`, `ICatalogService`, `ICartService`, and `IFeedbackService` interfaces — currently backed by mock JSON files, ready to swap for real REST/OpenAPI backends.
 - **CI/CD & Environment Promotion**: Fully configured GitHub Actions workflows for continuous integration quality gates (`.github/workflows/ci.yml`) and multi-environment deployment (`.github/workflows/cd.yml`).
+- **Web Widget Embed (`web/`)**: A standalone static test page embedding Google's `chat-messenger` SDK against the deployed dev app, self-authenticating via the CXAS token broker — servable locally with zero dependencies.
 
 ---
 
@@ -168,6 +169,9 @@ ShoppingAssistantAgent/
 │   └── run_evals.py                 # Local multi-agent simulation evaluation runner
 ├── tests/
 │   └── test_services.py             # Unit test suite (unittest)
+├── web/                               # Standalone web widget embed test page (static, not part of the CXAS app)
+│   ├── index.html                   # Embeds Google's chat-messenger SDK against the deployed dev app
+│   └── README.md                    # Local run instructions & token-broker auth notes
 └── scripts/
     ├── build_app.py                 # cxas-scrapi multi-environment deployer (dev, staging, prod); also
     │                                 # re-applies agent↔toolset bindings after push (see below)
@@ -404,6 +408,34 @@ uv run python scripts/build_app.py --env staging
 uv run python scripts/build_app.py --env prod
 # or: uv run cxas push --to projects/ecom-cx-agent/locations/us/apps/shopping-assistant-app-prod
 ```
+
+---
+
+## 💬 Web Widget Embed (Local Test Page)
+
+`web/` is a standalone static page — no build step, no dependencies, not touched by `cxas push`/`build_app.py` — that embeds Google's prebuilt `chat-messenger` SDK against a specific CXAS `Deployment` resource, for testing the deployed web widget outside of Studio's own Preview.
+
+```bash
+cd web && python3 -m http.server 8000   # open http://localhost:8000
+```
+
+### Authentication: the token broker, not a manually-supplied token
+The `chat-messenger` SDK **always requires an `accessToken`** on its registered context, client-side — regardless of the deployment's `security_settings.enable_public_access` flag. Without one, it throws `Error: No access token found.` before ever making a network call, and does so silently: no console error, no failed request, nothing but a swallowed exception (found by pausing the debugger on *caught* exceptions in the SDK's minified source). `enable_public_access` only controls what the *server* will accept — it doesn't remove the *client's* need for a token.
+
+The fix is **not** to mint a token once and hardcode it (`WidgetService.GenerateChatToken` tokens are scoped to a single session name, but the SDK generates its own session ID internally at runtime, so a static token won't match). Instead, `web/index.html` passes `tokenBroker: { enableTokenBroker: true }` into `chatSdk.prebuilts.ces.createContext({...})` — this makes the SDK automatically POST to the deployment's public `:generateChatToken` REST endpoint and self-manage the token whenever it opens a session:
+
+```js
+chatSdk.registerContext(
+  chatSdk.prebuilts.ces.createContext({
+    deploymentName: "projects/{project_number}/locations/{location}/apps/{app}/deployments/{deployment}",
+    tokenBroker: { enableTokenBroker: true }
+  }),
+);
+```
+
+That endpoint only accepts unauthenticated calls because this deployment's channel profile has `enable_public_access: true` (and `enable_recaptcha: false`, so no reCAPTCHA sitekey is needed either). Pointing this page at a different deployment requires that deployment to have the same `enable_public_access` setting, or the token broker fails the same silent way.
+
+Note `deploymentName` uses the numeric GCP **project number**, not the project ID — a different resource path shape than the `App` name (`projects/ecom-cx-agent/...`) used everywhere else in this repo.
 
 ---
 
