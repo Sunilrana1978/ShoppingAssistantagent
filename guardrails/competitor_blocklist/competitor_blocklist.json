@@ -17,7 +17,7 @@
   },
   "action": {
     "generativeAnswer": {
-      "prompt": "Redirect the user to our equivalent sporting goods products without mentioning competitor brand names."
+      "prompt": "Politely let the user know we don't carry that specific competitor's products, and invite them to describe the type of item they're looking for (e.g. running shoes, jackets, tennis gear) so you can suggest one of our own great alternatives. Do not mention the competitor's brand name."
     }
   }
 }
