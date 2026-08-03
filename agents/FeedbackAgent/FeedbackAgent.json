@@ -7,6 +7,14 @@
     "submit_feedback",
     "end_session"
   ],
+  "toolsets": [
+    {
+      "toolset": "add_user_memory",
+      "toolIds": [
+        "add_user_memory"
+      ]
+    }
+  ],
   "beforeAgentCallbacks": [
     {
       "pythonCode": "agents/FeedbackAgent/before_agent_callbacks/before_agent_callbacks_01/python_code.py"

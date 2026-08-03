@@ -60,6 +60,54 @@ MOCK_CATALOG = [
         "sizes": ["M", "L"],
         "description": "Padded weightlifting gloves with wrist support strap.",
         "image_url": "https://images.unsplash.com/photo-1517838277536-f5f99be501cd"
+    },
+    {
+        "sku": "sku_1034",
+        "name": "CourtKing Official Basketball",
+        "category": "equipment",
+        "sport": "basketball",
+        "brand": "CourtKing",
+        "price": 34.99,
+        "available_sizes": ["Size 6", "Size 7"],
+        "sizes": ["Size 6", "Size 7"],
+        "description": "Official size composite leather basketball with deep channel design for consistent grip.",
+        "image_url": "https://images.unsplash.com/photo-1627627256672-027a4613d028"
+    },
+    {
+        "sku": "sku_1035",
+        "name": "TrailForge Summit Hiking Boots",
+        "category": "shoes",
+        "sport": "hiking",
+        "brand": "TrailForge",
+        "price": 159.99,
+        "available_sizes": ["8", "9", "10", "11", "12"],
+        "sizes": [8, 9, 10, 11, 12],
+        "description": "Waterproof leather hiking boots with ankle support and rugged traction sole.",
+        "image_url": "https://images.unsplash.com/photo-1645259041347-bde12b3c24d9"
+    },
+    {
+        "sku": "sku_1036",
+        "name": "Velocity AeroShield Cycling Helmet",
+        "category": "equipment",
+        "sport": "cycling",
+        "brand": "Velocity",
+        "price": 79.99,
+        "available_sizes": ["S/M", "L/XL"],
+        "sizes": ["S/M", "L/XL"],
+        "description": "Lightweight aero road cycling helmet with MIPS protection and 18 vents.",
+        "image_url": "https://images.unsplash.com/photo-1554237160-bab09733f443"
+    },
+    {
+        "sku": "sku_1037",
+        "name": "ZenFlex Pro Yoga Mat",
+        "category": "equipment",
+        "sport": "yoga",
+        "brand": "ZenFlex",
+        "price": 39.99,
+        "available_sizes": ["4mm", "6mm"],
+        "sizes": ["4mm", "6mm"],
+        "description": "Non-slip extra-cushioned yoga mat with alignment guide lines.",
+        "image_url": "https://images.unsplash.com/photo-1646239646963-b0b9be56d6b5"
     }
 ]
 

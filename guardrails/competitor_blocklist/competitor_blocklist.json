@@ -1,0 +1,23 @@
+{
+  "displayName": "competitor_blocklist",
+  "description": "Redacts competitor brand names from agent responses.",
+  "enabled": true,
+  "contentFilter": {
+    "bannedContentsInAgentResponse": [
+      "Nike",
+      "Adidas",
+      "Under Armour",
+      "Puma",
+      "New Balance",
+      "Reebok",
+      "Saucony",
+      "Brooks"
+    ],
+    "matchType": "WORD_BOUNDARY_STRING_MATCH"
+  },
+  "action": {
+    "generativeAnswer": {
+      "prompt": "Politely let the user know we don't carry that specific competitor's products, and invite them to describe the type of item they're looking for (e.g. running shoes, jackets, tennis gear) so you can suggest one of our own great alternatives. Do not mention the competitor's brand name."
+    }
+  }
+}

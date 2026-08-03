@@ -1,0 +1,7 @@
+{
+  "displayName": "add_user_memory",
+  "description": "Save a concise natural-language fact about this session (preferences, interests, cart activity, or feedback) to the user's long-term profile in Firestore, so it can inform future recommendations.",
+  "openApiToolset": {
+    "openApiSchema": "toolsets/add_user_memory/open_api_toolset/open_api_schema.yaml"
+  }
+}

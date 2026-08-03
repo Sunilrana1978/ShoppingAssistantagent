@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 import tempfile
 from typing import Dict, Any, Optional
 
@@ -8,13 +9,23 @@ try:
 except ImportError:
     cart_service = None
 
-def remove_from_cart(session_id: str = "", sku: str = "", discount_pct: float = 0.0, current_cart: Optional[Dict[str, Any]] = {}) -> Dict[str, Any]:
+logger = logging.getLogger(__name__)
+
+
+def remove_from_cart(session_id: str = "", sku: str = "", discount_pct: float = 0.0, user_id: str = "", current_cart: Optional[Dict[str, Any]] = {}) -> Dict[str, Any]:
     """
     Remove item SKU from active session cart via cart_service or fallback state.
     """
     try:
         sid = str(session_id or "sess_default").strip()
         clean_sku = str(sku).lower().strip()
+        uid = str(user_id or "").strip()
+
+        if not uid:
+            if "context" in globals() and hasattr(globals()["context"], "state") and getattr(globals()["context"], "state"):
+                uid = str(globals()["context"].state.get("user_id") or "").strip()
+            elif "get_variable" in globals():
+                uid = str(globals()["get_variable"]("user_id") or "").strip()
 
         if cart_service:
             cart = cart_service.remove_item(session_id=sid, sku=sku)

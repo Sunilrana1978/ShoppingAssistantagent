@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 import fcntl
 import tempfile
 from typing import Dict, Any, Optional
@@ -8,6 +9,8 @@ try:
     from services.cart_service import cart_service
 except ImportError:
     cart_service = None
+
+logger = logging.getLogger(__name__)
 
 _FALLBACK_CARTS: Dict[str, Dict[str, Any]] = {}
 
@@ -34,6 +37,22 @@ CATALOG_PRICES = {
     "sku_1033": {"name": "UltraGrip Gym Gloves", "price": 29.99},
     "ultragrip": {"name": "UltraGrip Gym Gloves", "price": 29.99},
     "ug": {"name": "UltraGrip Gym Gloves", "price": 29.99},
+
+    "sku_1034": {"name": "CourtKing Official Basketball", "price": 34.99},
+    "courtking": {"name": "CourtKing Official Basketball", "price": 34.99},
+    "cb": {"name": "CourtKing Official Basketball", "price": 34.99},
+
+    "sku_1035": {"name": "TrailForge Summit Hiking Boots", "price": 159.99},
+    "trailforge": {"name": "TrailForge Summit Hiking Boots", "price": 159.99},
+    "hb": {"name": "TrailForge Summit Hiking Boots", "price": 159.99},
+
+    "sku_1036": {"name": "Velocity AeroShield Cycling Helmet", "price": 79.99},
+    "aeroshield": {"name": "Velocity AeroShield Cycling Helmet", "price": 79.99},
+    "ch": {"name": "Velocity AeroShield Cycling Helmet", "price": 79.99},
+
+    "sku_1037": {"name": "ZenFlex Pro Yoga Mat", "price": 39.99},
+    "zenflex": {"name": "ZenFlex Pro Yoga Mat", "price": 39.99},
+    "ym": {"name": "ZenFlex Pro Yoga Mat", "price": 39.99},
 }
 
 
@@ -63,12 +82,19 @@ def add_to_cart(
         sid = str(session_id or "sess_default").strip()
         uid = str(user_id or "").strip()
 
-        # Read current cart from context.state if provided
-        if current_cart is None:
+        # Read current cart (and user_id fallback) from context.state if provided
+        if current_cart is None or not uid:
             if "context" in globals() and hasattr(globals()["context"], "state") and getattr(globals()["context"], "state"):
-                current_cart = globals()["context"].state.get("cart")
+                state = globals()["context"].state
+                if current_cart is None:
+                    current_cart = state.get("cart")
+                if not uid:
+                    uid = str(state.get("user_id") or "").strip()
             elif "get_variable" in globals():
-                current_cart = globals()["get_variable"]("cart")
+                if current_cart is None:
+                    current_cart = globals()["get_variable"]("cart")
+                if not uid:
+                    uid = str(globals()["get_variable"]("user_id") or "").strip()
 
         if cart_service:
             cart = cart_service.add_item(session_id=sid, sku=sku, qty=qty, size=size, user_id=uid)

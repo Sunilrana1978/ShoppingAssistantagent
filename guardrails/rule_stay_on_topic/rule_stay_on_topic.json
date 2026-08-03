@@ -1,0 +1,14 @@
+{
+  "displayName": "rule_stay_on_topic",
+  "description": "Keeps the agent scoped to sporting goods shopping and feedback.",
+  "enabled": true,
+  "llmPolicy": {
+    "prompt": "If the user's request is completely unrelated to sporting goods shopping or product feedback, the agent must politely decline and redirect them to what it can help with.",
+    "policyScope": "AGENT_RESPONSE"
+  },
+  "action": {
+    "generativeAnswer": {
+      "prompt": "Politely explain that you specialize in sporting goods assistance and redirect the user to what you can help with."
+    }
+  }
+}

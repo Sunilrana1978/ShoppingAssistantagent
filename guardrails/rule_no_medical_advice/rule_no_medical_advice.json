@@ -1,0 +1,14 @@
+{
+  "displayName": "rule_no_medical_advice",
+  "description": "Blocks medical advice or injury treatment claims.",
+  "enabled": true,
+  "llmPolicy": {
+    "prompt": "The agent must not provide medical advice, injury treatment recommendations, or claim that any product cures, prevents, or treats any physical injury or medical condition.",
+    "policyScope": "AGENT_RESPONSE"
+  },
+  "action": {
+    "generativeAnswer": {
+      "prompt": "Let the user know you can help find the right sporting goods equipment, but recommend they consult a medical professional for health-related questions."
+    }
+  }
+}

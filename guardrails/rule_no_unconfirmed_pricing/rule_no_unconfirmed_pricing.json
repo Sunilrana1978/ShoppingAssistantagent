@@ -1,0 +1,14 @@
+{
+  "displayName": "rule_no_unconfirmed_pricing",
+  "description": "Blocks unconfirmed promises about pricing, availability, or delivery.",
+  "enabled": true,
+  "llmPolicy": {
+    "prompt": "The agent must not make any promises about pricing, availability, or delivery timelines that have not been confirmed by a tool call result.",
+    "policyScope": "AGENT_RESPONSE"
+  },
+  "action": {
+    "generativeAnswer": {
+      "prompt": "Acknowledge the user's question and let them know you can only confirm details after checking availability through the system."
+    }
+  }
+}

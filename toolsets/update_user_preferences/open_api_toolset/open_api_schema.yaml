@@ -1,0 +1,79 @@
+openapi: 3.0.3
+info:
+  title: User Profile Microservice API
+  version: 1.0.0
+servers:
+  - url: https://shopping-user-service-331751626808.us-central1.run.app
+paths:
+  /api/v1/users/{user_id}/preferences:
+    post:
+      operationId: update_user_preferences
+      summary: Merge partial shopping preference updates for the user in Firestore.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                preferred_categories:
+                  type: array
+                  items:
+                    type: string
+                preferred_sports:
+                  type: array
+                  items:
+                    type: string
+                preferred_brands:
+                  type: array
+                  items:
+                    type: string
+                shoe_size:
+                  type: string
+                apparel_size:
+                  type: string
+                equipment_size:
+                  type: string
+                price_max:
+                  type: number
+      responses:
+        "200":
+          description: Preferences saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  user_id:
+                    type: string
+                  preferences:
+                    type: object
+                    properties:
+                      preferred_categories:
+                        type: array
+                        items:
+                          type: string
+                      preferred_sports:
+                        type: array
+                        items:
+                          type: string
+                      preferred_brands:
+                        type: array
+                        items:
+                          type: string
+                      shoe_size:
+                        type: string
+                      apparel_size:
+                        type: string
+                      equipment_size:
+                        type: string
+                      price_max:
+                        type: number

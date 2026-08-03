@@ -1,74 +1,10 @@
-import os
+import logging
 from typing import Any, Optional
 
 Tool = Any
 CallbackContext = Any
 
-try:
-    from services.cart_service import cart_service
-except ImportError:
-    cart_service = None
-
-try:
-    from google.cloud.aiplatform_v1beta1 import MemoryBankServiceClient  # type: ignore
-    _MEMORY_BANK_AVAILABLE = True
-except ImportError:
-    try:
-        from google.cloud.aiplatform.memory import MemoryBankServiceClient  # type: ignore
-        _MEMORY_BANK_AVAILABLE = True
-    except ImportError:
-        _MEMORY_BANK_AVAILABLE = False
-
-DEFAULT_REASONING_ENGINE_ID = "432575911913586688"
-
-
-def _save_live_memory(user_id: str, fact_text: str, project_id: str = "ecom-cx-agent", location: str = "us-central1") -> None:
-    """Save a long-term fact to live Vertex AI Memory Bank if available."""
-    if not _MEMORY_BANK_AVAILABLE or not user_id or user_id.lower() in ("guest", "u_guest"):
-        return
-    try:
-        endpoint = f"{location}-aiplatform.googleapis.com"
-        client = MemoryBankServiceClient(client_options={"api_endpoint": endpoint})
-        engine_id = os.getenv("REASONING_ENGINE_ID", DEFAULT_REASONING_ENGINE_ID)
-        parent = f"projects/{project_id}/locations/{location}/reasoningEngines/{engine_id}"
-        if hasattr(client, "generate_memories"):
-            client.generate_memories(
-                parent=parent,
-                user_id=user_id,
-                text_payload=fact_text,
-            )
-        elif hasattr(client, "generate_and_save_memory"):
-            client.generate_and_save_memory(
-                parent=parent,
-                user_id=user_id,
-                text=fact_text,
-            )
-        elif hasattr(client, "create_memory"):
-            client.create_memory(
-                parent=parent,
-                memory={"user_id": user_id, "fact": fact_text},
-            )
-    except Exception:
-        pass
-
-
-def get_session_id(callback_context: Any) -> str:
-    """Helper to extract active session ID from Agent Engine callback context."""
-    if not callback_context:
-        return ""
-    if hasattr(callback_context, "session_id") and getattr(callback_context, "session_id"):
-        return str(getattr(callback_context, "session_id"))
-    if hasattr(callback_context, "session"):
-        session = getattr(callback_context, "session")
-        if hasattr(session, "id") and getattr(session, "id"):
-            return str(getattr(session, "id"))
-        if hasattr(session, "session_id") and getattr(session, "session_id"):
-            return str(getattr(session, "session_id"))
-        if isinstance(session, dict):
-            return str(session.get("id") or session.get("session_id") or "")
-    if isinstance(callback_context, dict):
-        return str(callback_context.get("session_id") or callback_context.get("state", {}).get("session_id") or "")
-    return ""
+logger = logging.getLogger(__name__)
 
 
 def get_state(callback_context: Any) -> dict:
@@ -138,7 +74,7 @@ def set_state_var(callback_context: Any, key: str, value: Any) -> None:
         _set_on_target(session)
         for attr in ("state", "variables", "session_variables", "parameters"):
             if hasattr(session, attr):
-                _set_on_target(getattr(session, attr))
+                _set_on_target(session, attr)
 
 
 def after_tool_callback(
@@ -148,8 +84,8 @@ def after_tool_callback(
     tool_response: dict[str, Any],
 ) -> Optional[dict[str, Any]]:
     """
-    Executes after a tool call finishes to update session variables,
-    recompute cart pricing, and commit state back to Agent Engine.
+    Executes after a tool call finishes.
+    Updates cart math and session variables dynamically.
     """
     if tool_response is None and callback_context is not None:
         tool_name = str(tool)
@@ -161,8 +97,6 @@ def after_tool_callback(
         context_obj = callback_context if callback_context is not None else input
 
     state = get_state(context_obj)
-    sid = get_session_id(context_obj) or state.get("session_id") or "sess_default"
-    user_id = state.get("user_id", "")
     discount_pct = float(state.get("discount_pct") or (tool_output.get("cart", {}).get("discount_pct") if isinstance(tool_output.get("cart"), dict) else 0) or 0)
 
     if tool_name in ("add_to_cart", "remove_from_cart", "get_cart"):
@@ -177,29 +111,17 @@ def after_tool_callback(
             })
             set_state_var(context_obj, "cart", cart)
             tool_output["cart"] = cart
-            tool_output["updatedVariables"] = {"cart": cart}
-            tool_output["updated_variables"] = {"cart": cart}
-            tool_output["variables"] = {"cart": cart}
-            tool_output["x-ces-session-context"] = {
-                "variables": {
-                    "cart": cart
-                }
-            }
 
-            # Save live memory fact to Vertex AI Memory Bank
-            if user_id and tool_name == "add_to_cart" and cart.get("items"):
-                item_summaries = [f"{i.get('name')} (size {i.get('size')})" for i in cart["items"]]
-                fact = f"User added {', '.join(item_summaries)} to cart for ${cart.get('total')}."
-                _save_live_memory(user_id, fact)
+    elif tool_name == "search_catalog":
+        products = tool_output.get("products")
+        if isinstance(products, list):
+            set_state_var(context_obj, "search_results", products)
 
     elif tool_name == "get_discount":
         if "discount_pct" in tool_output:
             new_pct = tool_output["discount_pct"]
             set_state_var(context_obj, "discount_pct", new_pct)
-            if cart_service:
-                updated_cart = cart_service.update_cart_pricing(sid, new_pct)
-                set_state_var(context_obj, "cart", updated_cart)
-            elif state.get("cart"):
+            if state.get("cart"):
                 cart = dict(state["cart"])
                 subtotal = float(cart.get("subtotal", 0.0))
                 disc_amt = round(subtotal * (new_pct / 100.0), 2)
@@ -210,20 +132,21 @@ def after_tool_callback(
                 })
                 set_state_var(context_obj, "cart", cart)
 
-    elif tool_name == "get_user_profile":
+    elif tool_name in ("get_user_profile", "fetch_user_profile", "fetch_user_profile_fetch_user_profile"):
         name = tool_output.get("user_name") or tool_output.get("name") or "Shopper"
         set_state_var(context_obj, "user_name", name)
         set_state_var(context_obj, "membership_tier", tool_output.get("membership_tier", "none"))
+        set_state_var(context_obj, "long_term_memories", tool_output.get("memories", []))
+        set_state_var(context_obj, "preferences", tool_output.get("preferences", {}))
 
-    elif tool_name == "search_catalog":
-        if "products" in tool_output:
-            set_state_var(context_obj, "search_results", tool_output["products"])
+    elif tool_name in ("add_user_memory", "add_user_memory_add_user_memory"):
+        if tool_output.get("status") == "success" and "fact" in tool_output:
+            existing = state.get("long_term_memories") or []
+            if isinstance(existing, list) and tool_output["fact"] not in existing:
+                set_state_var(context_obj, "long_term_memories", existing + [tool_output["fact"]])
 
-    elif tool_name == "submit_feedback":
-        if tool_output.get("status") == "success":
-            set_state_var(context_obj, "feedback_submitted", True)
-            set_state_var(context_obj, "last_feedback_id", tool_output.get("feedback_id"))
-            if user_id:
-                _save_live_memory(user_id, f"User submitted rating {tool_output.get('rating')} star feedback.")
+    elif tool_name in ("update_user_preferences", "update_user_preferences_update_user_preferences"):
+        if tool_output.get("status") == "success" and "preferences" in tool_output:
+            set_state_var(context_obj, "preferences", tool_output["preferences"])
 
     return tool_output

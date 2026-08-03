@@ -9,7 +9,11 @@ description = "Sporting Goods Shopping Assistant Agent using CX Agent Studio and
 readme = "Shopping-Assistant-Agent-PRD.md"
 requires-python = ">=3.10"
 dependencies = [
-    "cxas-scrapi>=0.1.0",
+    # Pinned: 1.8.0's V001/V004 lint rules have a docstring-parsing bug that
+    # flags Optional fields as required whenever their description text
+    # happens to contain the word "required" (e.g. OpenApiToolset.api_authentication,
+    # Schema.required). Bump once fixed upstream.
+    "cxas-scrapi==1.7.0",
     "google-adk>=0.1.0",
     "google-genai>=0.1.0",
     "google-cloud-aiplatform>=1.60.0",

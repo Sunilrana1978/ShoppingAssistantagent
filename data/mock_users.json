@@ -2,73 +2,25 @@
   "u_1029": {
     "name": "Alex",
     "membership_tier": "gold",
-    "memories": [
-      "User Alex previously added TrailBlaze Pro Trail Runner (size 10, qty 1) to cart for $110.49."
-    ],
-    "previous_cart": {
-      "session_id": "sess_previous",
-      "user_id": "u_1029",
-      "items": [
-        {
-          "sku": "sku_1029",
-          "name": "TrailBlaze Pro Trail Runner",
-          "qty": 1,
-          "size": "10",
-          "unit_price": 129.99
-        }
-      ],
-      "subtotal": 129.99,
-      "discount_pct": 15.0,
-      "discount_amount": 19.50,
-      "total": 110.49
-    }
+    "memories": [],
+    "previous_cart": {}
   },
   "u_1030": {
     "name": "Jordan",
     "membership_tier": "silver",
-    "memories": [
-      "User Jordan previously added Apex Aero Road Running Shoes (size 10, qty 1) to cart for $134.99."
-    ],
-    "previous_cart": {
-      "session_id": "sess_previous",
-      "user_id": "u_1030",
-      "items": [
-        {
-          "sku": "sku_1030",
-          "name": "Apex Aero Road Running Shoes",
-          "qty": 1,
-          "size": "10",
-          "unit_price": 149.99
-        }
-      ],
-      "subtotal": 149.99,
-      "discount_pct": 10.0,
-      "discount_amount": 15.00,
-      "total": 134.99
-    }
+    "memories": [],
+    "previous_cart": {}
   },
   "u_1031": {
     "name": "Taylor",
     "membership_tier": "bronze",
     "memories": [],
-    "previous_cart": {
-      "items": [],
-      "subtotal": 0.0,
-      "discount_pct": 5.0,
-      "discount_amount": 0.0,
-      "total": 0.0
-    }
+    "previous_cart": {}
   },
   "guest": {
     "name": "Guest",
     "membership_tier": "none",
     "memories": [],
-    "previous_cart": {
-      "items": [],
-      "subtotal": 0.0,
-      "discount_pct": 0.0,
-      "discount_amount": 0.0,
-      "total": 0.0
-    }
+    "previous_cart": {}
   }
 }

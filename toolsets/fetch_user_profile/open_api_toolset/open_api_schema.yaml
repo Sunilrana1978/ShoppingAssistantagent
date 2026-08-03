@@ -1,0 +1,60 @@
+openapi: 3.0.3
+info:
+  title: User Profile Microservice API
+  version: 1.0.0
+servers:
+  - url: https://shopping-user-service-331751626808.us-central1.run.app
+paths:
+  /api/v1/users/{user_id}:
+    get:
+      operationId: fetch_user_profile
+      summary: Fetch live user profile metadata, long-term memory facts, and preferences from Firestore.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Live Firestore user profile data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  user_id:
+                    type: string
+                  user_name:
+                    type: string
+                  membership_tier:
+                    type: string
+                  memories:
+                    type: array
+                    items:
+                      type: string
+                  preferences:
+                    type: object
+                    properties:
+                      preferred_categories:
+                        type: array
+                        items:
+                          type: string
+                      preferred_sports:
+                        type: array
+                        items:
+                          type: string
+                      preferred_brands:
+                        type: array
+                        items:
+                          type: string
+                      shoe_size:
+                        type: string
+                      apparel_size:
+                        type: string
+                      equipment_size:
+                        type: string
+                      price_max:
+                        type: number

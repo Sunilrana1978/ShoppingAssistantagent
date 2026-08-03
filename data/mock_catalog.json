@@ -58,5 +58,53 @@
     "colors": ["black"],
     "image_url": "https://images.unsplash.com/photo-1517838277536-f5f99be501cd",
     "description": "Padded weightlifting gloves with wrist support strap."
+  },
+  "sku_1034": {
+    "sku": "sku_1034",
+    "name": "CourtKing Official Basketball",
+    "category": "equipment",
+    "sport": "basketball",
+    "brand": "CourtKing",
+    "price": 34.99,
+    "sizes": ["Size 6", "Size 7"],
+    "colors": ["orange"],
+    "image_url": "https://images.unsplash.com/photo-1627627256672-027a4613d028",
+    "description": "Official size composite leather basketball with deep channel design for consistent grip."
+  },
+  "sku_1035": {
+    "sku": "sku_1035",
+    "name": "TrailForge Summit Hiking Boots",
+    "category": "shoes",
+    "sport": "hiking",
+    "brand": "TrailForge",
+    "price": 159.99,
+    "sizes": [8, 9, 10, 11, 12],
+    "colors": ["brown", "black"],
+    "image_url": "https://images.unsplash.com/photo-1645259041347-bde12b3c24d9",
+    "description": "Waterproof leather hiking boots with ankle support and rugged traction sole."
+  },
+  "sku_1036": {
+    "sku": "sku_1036",
+    "name": "Velocity AeroShield Cycling Helmet",
+    "category": "equipment",
+    "sport": "cycling",
+    "brand": "Velocity",
+    "price": 79.99,
+    "sizes": ["S/M", "L/XL"],
+    "colors": ["white", "black"],
+    "image_url": "https://images.unsplash.com/photo-1554237160-bab09733f443",
+    "description": "Lightweight aero road cycling helmet with MIPS protection and 18 vents."
+  },
+  "sku_1037": {
+    "sku": "sku_1037",
+    "name": "ZenFlex Pro Yoga Mat",
+    "category": "equipment",
+    "sport": "yoga",
+    "brand": "ZenFlex",
+    "price": 39.99,
+    "sizes": ["4mm", "6mm"],
+    "colors": ["teal", "purple"],
+    "image_url": "https://images.unsplash.com/photo-1646239646963-b0b9be56d6b5",
+    "description": "Non-slip extra-cushioned yoga mat with alignment guide lines."
   }
 }

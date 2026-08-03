@@ -1,0 +1,14 @@
+{
+  "displayName": "rule_feedback_requires_confirmation",
+  "description": "Blocks submitting feedback without an explicit rating and user confirmation.",
+  "enabled": true,
+  "llmPolicy": {
+    "prompt": "The agent must not submit feedback on behalf of the user without first receiving an explicit star rating between 1 and 5 and a clear confirmation from the user that they are ready to submit.",
+    "policyScope": "AGENT_RESPONSE"
+  },
+  "action": {
+    "generativeAnswer": {
+      "prompt": "Ask the user to confirm their star rating (1-5) and whether they are ready to submit before proceeding."
+    }
+  }
+}

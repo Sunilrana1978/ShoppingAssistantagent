@@ -4,13 +4,33 @@
   "description": "Primary conversational assistant for product discovery, discounts, and cart management.",
   "instruction": "agents/ShoppingAssistant/instruction.txt",
   "tools": [
-    "get_user_profile",
     "get_discount",
     "search_catalog",
     "add_to_cart",
     "get_cart",
     "remove_from_cart",
-    "end_session"
+    "end_session",
+    "show_product_carousel"
+  ],
+  "toolsets": [
+    {
+      "toolset": "fetch_user_profile",
+      "toolIds": [
+        "fetch_user_profile"
+      ]
+    },
+    {
+      "toolset": "add_user_memory",
+      "toolIds": [
+        "add_user_memory"
+      ]
+    },
+    {
+      "toolset": "update_user_preferences",
+      "toolIds": [
+        "update_user_preferences"
+      ]
+    }
   ],
   "beforeAgentCallbacks": [
     {
@@ -25,11 +45,6 @@
   "afterToolCallbacks": [
     {
       "pythonCode": "agents/ShoppingAssistant/after_tool_callbacks/after_tool_callbacks_01/python_code.py"
-    }
-  ],
-  "afterModelCallbacks": [
-    {
-      "pythonCode": "agents/ShoppingAssistant/after_model_callbacks/after_model_callbacks_01/python_code.py"
     }
   ]
 }
