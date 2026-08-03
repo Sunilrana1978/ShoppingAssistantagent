@@ -69,6 +69,11 @@ pytest microservice/test_main.py
 bash microservice/deploy.sh    # deploys shopping-user-service to Cloud Run — must be redeployed manually, it is not part of build_app.py
 ```
 
+Local test page for the deployed web widget (static, no build step, no dependencies — see "Web widget embed" below):
+```bash
+cd web && python3 -m http.server 8000   # open http://localhost:8000
+```
+
 ## Architecture
 
 **Three-agent router topology**, declared in `app.json` (`rootAgent: RootAgent`) and wired in `agents/*/*.json` manifests:
@@ -109,6 +114,10 @@ Each agent directory follows the same shape: `<Agent>.json` (manifest: instructi
 **Pricing is computed server-side**, never trusted from the model: `after_tool_callback` in `ShoppingAssistant` recomputes `subtotal` / `discount_amount` / `total` whenever `add_to_cart`, `remove_from_cart`, `get_cart`, or `get_discount` return, using `discount_pct` from state. Membership tiers map to fixed discounts: Gold 15%, Silver 10%, Bronze 5%, Guest 0% (`data/membership_discounts.json`).
 
 **Guardrails are first-class resources, not inline `app.json` config** — despite how that might read at a glance. `Guardrail` is its own CES proto resource type (like `Tool`/`Toolset`): each one is a separate `guardrails/<name>/<name>.json` file with one of `contentFilter` (blocklist/regex), `llmPromptSecurity` (jailbreak/injection detection), or `llmPolicy` (natural-language behavioral rule) set, plus an `action` (`generativeAnswer` or `respondImmediately`). `app.json`'s top-level `guardrails` array is just a list of these resource IDs by directory name — an earlier version tried embedding the guardrail definitions inline in `app.json`, which silently failed to push and got deleted rather than fixed, so **check that `guardrails/` actually contains a file for every ID listed in `app.json`'s `guardrails` array** before assuming this area works. Schema gotcha: `TriggerAction.RespondImmediately.responses` is `repeated {text, disabled}`, not `repeated string` — a bare string array fails lint with a cryptic "no field named 'F'" (the parser reads the string's first character as a field name).
+
+**Web widget embed (`web/`) is a separate, static concern from the CXAS app itself** — it's not pushed by `cxas push`/`build_app.py` and has no Python. `web/index.html` embeds Google's prebuilt `chat-messenger` SDK (`gstatic.com/chat-messenger/sdk/prod/v1.16/`), pointed at a specific `Deployment` resource (`deploymentName`, format `projects/{project}/locations/{location}/apps/{app}/deployments/{deployment}` — note this uses the numeric GCP **project number**, not the project ID, and is a different resource from the `App` used everywhere else in this repo). Two non-obvious facts about the auth flow, found by pausing on caught exceptions in the SDK's minified source (`chat-messenger.js`) after the widget failed silently — no console error, no network request, just a swallowed exception:
+- The SDK **unconditionally requires an `accessToken`** on the registered context, client-side, regardless of the deployment's `channel_profile.web_widget_config.security_settings.enable_public_access` setting. Without one it throws `Error: No access token found.` before ever attempting a network call — `enable_public_access` only controls what the *server* will accept, not whether the *client* needs a token at all.
+- The fix is **not** to manually mint and hardcode a token (`WidgetService.GenerateChatToken` tokens are scoped to one session name, but the SDK generates its own session ID internally, so a static token won't match). Instead, pass `tokenBroker: { enableTokenBroker: true }` in `chatSdk.prebuilts.ces.createContext({...})` — this makes the SDK fetch its own token by POSTing to the deployment's public `:generateChatToken` REST endpoint whenever it creates a session. That endpoint only accepts unauthenticated calls because `enable_public_access` is `true` on this deployment's channel profile; pointing `web/index.html` at a different deployment requires that deployment to have the same flag set, or the token broker fails the same silent way. If `enable_recaptcha` were also `true` on the channel profile, the token broker would additionally need a reCAPTCHA sitekey wired through `tokenBroker.recaptchaSitekey` — not needed here since it's `false`.
 
 ## Conventions to follow
 
