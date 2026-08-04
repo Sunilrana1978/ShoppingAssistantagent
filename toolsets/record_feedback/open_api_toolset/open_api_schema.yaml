@@ -1,0 +1,47 @@
+openapi: 3.0.3
+info:
+  title: User Profile Microservice API
+  version: 1.0.0
+servers:
+  - url: https://shopping-user-service-331751626808.us-central1.run.app
+paths:
+  /api/v1/users/{user_id}/feedback:
+    post:
+      operationId: record_feedback
+      summary: Durably persist a customer's star rating and comments in Firestore.
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - feedback_id
+                - rating
+              properties:
+                feedback_id:
+                  type: string
+                rating:
+                  type: integer
+                comments:
+                  type: string
+      responses:
+        "200":
+          description: Feedback recorded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  user_id:
+                    type: string
+                  feedback_id:
+                    type: string

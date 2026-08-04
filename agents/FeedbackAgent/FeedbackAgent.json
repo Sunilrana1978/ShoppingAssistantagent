@@ -13,6 +13,12 @@
       "toolIds": [
         "add_user_memory"
       ]
+    },
+    {
+      "toolset": "record_feedback",
+      "toolIds": [
+        "record_feedback"
+      ]
     }
   ],
   "beforeAgentCallbacks": [

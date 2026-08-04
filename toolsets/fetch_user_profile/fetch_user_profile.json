@@ -2,6 +2,13 @@
   "displayName": "fetch_user_profile",
   "description": "Fetch live user profile metadata, long-term memory facts, and previous cart snapshot from Firestore.",
   "openApiToolset": {
-    "openApiSchema": "toolsets/fetch_user_profile/open_api_toolset/open_api_schema.yaml"
+    "openApiSchema": "toolsets/fetch_user_profile/open_api_toolset/open_api_schema.yaml",
+    "apiAuthentication": {
+      "apiKeyConfig": {
+        "keyName": "X-API-Key",
+        "requestLocation": "HEADER",
+        "apiKeySecretVersion": "projects/331751626808/secrets/shopping-user-service-api-key/versions/latest"
+      }
+    }
   }
 }

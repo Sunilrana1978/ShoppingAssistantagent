@@ -96,57 +96,63 @@ def after_tool_callback(
         tool_output = tool_response if isinstance(tool_response, dict) else (input if isinstance(input, dict) else {})
         context_obj = callback_context if callback_context is not None else input
 
-    state = get_state(context_obj)
-    discount_pct = float(state.get("discount_pct") or (tool_output.get("cart", {}).get("discount_pct") if isinstance(tool_output.get("cart"), dict) else 0) or 0)
+    try:
+        state = get_state(context_obj)
+        discount_pct = float(state.get("discount_pct") or (tool_output.get("cart", {}).get("discount_pct") if isinstance(tool_output.get("cart"), dict) else 0) or 0)
 
-    if tool_name in ("add_to_cart", "remove_from_cart", "get_cart"):
-        cart = tool_output.get("cart") or state.get("cart")
-        if cart and isinstance(cart, dict):
-            subtotal = float(cart.get("subtotal", 0.0))
-            disc_amt = round(subtotal * (discount_pct / 100.0), 2)
-            cart.update({
-                "discount_pct": discount_pct,
-                "discount_amount": disc_amt,
-                "total": round(subtotal - disc_amt, 2),
-            })
-            set_state_var(context_obj, "cart", cart)
-            tool_output["cart"] = cart
-
-    elif tool_name == "search_catalog":
-        products = tool_output.get("products")
-        if isinstance(products, list):
-            set_state_var(context_obj, "search_results", products)
-
-    elif tool_name == "get_discount":
-        if "discount_pct" in tool_output:
-            new_pct = tool_output["discount_pct"]
-            set_state_var(context_obj, "discount_pct", new_pct)
-            if state.get("cart"):
-                cart = dict(state["cart"])
+        if tool_name in ("add_to_cart", "remove_from_cart", "get_cart"):
+            cart = tool_output.get("cart") or state.get("cart")
+            if cart and isinstance(cart, dict):
                 subtotal = float(cart.get("subtotal", 0.0))
-                disc_amt = round(subtotal * (new_pct / 100.0), 2)
+                disc_amt = round(subtotal * (discount_pct / 100.0), 2)
                 cart.update({
-                    "discount_pct": new_pct,
+                    "discount_pct": discount_pct,
                     "discount_amount": disc_amt,
                     "total": round(subtotal - disc_amt, 2),
                 })
                 set_state_var(context_obj, "cart", cart)
+                tool_output["cart"] = cart
 
-    elif tool_name in ("get_user_profile", "fetch_user_profile", "fetch_user_profile_fetch_user_profile"):
-        name = tool_output.get("user_name") or tool_output.get("name") or "Shopper"
-        set_state_var(context_obj, "user_name", name)
-        set_state_var(context_obj, "membership_tier", tool_output.get("membership_tier", "none"))
-        set_state_var(context_obj, "long_term_memories", tool_output.get("memories", []))
-        set_state_var(context_obj, "preferences", tool_output.get("preferences", {}))
+        elif tool_name == "search_catalog":
+            products = tool_output.get("products")
+            if isinstance(products, list):
+                set_state_var(context_obj, "search_results", products)
 
-    elif tool_name in ("add_user_memory", "add_user_memory_add_user_memory"):
-        if tool_output.get("status") == "success" and "fact" in tool_output:
-            existing = state.get("long_term_memories") or []
-            if isinstance(existing, list) and tool_output["fact"] not in existing:
-                set_state_var(context_obj, "long_term_memories", existing + [tool_output["fact"]])
+        elif tool_name == "get_discount":
+            if "discount_pct" in tool_output:
+                new_pct = tool_output["discount_pct"]
+                set_state_var(context_obj, "discount_pct", new_pct)
+                if state.get("cart"):
+                    cart = dict(state["cart"])
+                    subtotal = float(cart.get("subtotal", 0.0))
+                    disc_amt = round(subtotal * (new_pct / 100.0), 2)
+                    cart.update({
+                        "discount_pct": new_pct,
+                        "discount_amount": disc_amt,
+                        "total": round(subtotal - disc_amt, 2),
+                    })
+                    set_state_var(context_obj, "cart", cart)
 
-    elif tool_name in ("update_user_preferences", "update_user_preferences_update_user_preferences"):
-        if tool_output.get("status") == "success" and "preferences" in tool_output:
-            set_state_var(context_obj, "preferences", tool_output["preferences"])
+        elif tool_name in ("get_user_profile", "fetch_user_profile", "fetch_user_profile_fetch_user_profile"):
+            name = tool_output.get("user_name") or tool_output.get("name") or "Shopper"
+            set_state_var(context_obj, "user_name", name)
+            set_state_var(context_obj, "membership_tier", tool_output.get("membership_tier", "none"))
+            set_state_var(context_obj, "long_term_memories", tool_output.get("memories", []))
+            set_state_var(context_obj, "preferences", tool_output.get("preferences", {}))
+
+        elif tool_name in ("add_user_memory", "add_user_memory_add_user_memory"):
+            if tool_output.get("status") == "success" and "fact" in tool_output:
+                existing = state.get("long_term_memories") or []
+                if isinstance(existing, list) and tool_output["fact"] not in existing:
+                    set_state_var(context_obj, "long_term_memories", existing + [tool_output["fact"]])
+
+        elif tool_name in ("update_user_preferences", "update_user_preferences_update_user_preferences"):
+            if tool_output.get("status") == "success" and "preferences" in tool_output:
+                set_state_var(context_obj, "preferences", tool_output["preferences"])
+
+    except Exception:
+        logger.exception(
+            "after_tool_callback failed post-processing tool_name=%r; returning raw tool_output unmodified", tool_name
+        )
 
     return tool_output

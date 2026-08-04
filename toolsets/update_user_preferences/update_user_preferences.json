@@ -2,6 +2,13 @@
   "displayName": "update_user_preferences",
   "description": "Save or update structured shopping preferences (favorite categories, sports, brands, sizes, budget) for the user in Firestore, to use as default recommendation filters in future sessions.",
   "openApiToolset": {
-    "openApiSchema": "toolsets/update_user_preferences/open_api_toolset/open_api_schema.yaml"
+    "openApiSchema": "toolsets/update_user_preferences/open_api_toolset/open_api_schema.yaml",
+    "apiAuthentication": {
+      "apiKeyConfig": {
+        "keyName": "X-API-Key",
+        "requestLocation": "HEADER",
+        "apiKeySecretVersion": "projects/331751626808/secrets/shopping-user-service-api-key/versions/latest"
+      }
+    }
   }
 }
