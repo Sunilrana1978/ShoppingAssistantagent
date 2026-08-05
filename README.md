@@ -19,7 +19,7 @@ The application features a **Multi-Agent Router Architecture** driven by natural
 - **Rich Response Widgets**: `ShoppingAssistant` calls a native CXAS `WidgetTool` (`tools/show_product_carousel/`) directly after `search_catalog`, rendering results as an image-bearing product carousel — a first-class platform tool the model invokes itself, not a callback formatting a custom payload.
 - **Service Abstraction Layer**: Data access is isolated behind `IUserService`, `IDiscountService`, `ICatalogService`, `ICartService`, and `IFeedbackService` interfaces — currently backed by mock JSON files, ready to swap for real REST/OpenAPI backends.
 - **CI/CD & Environment Promotion**: Fully configured GitHub Actions workflows for continuous integration quality gates (`.github/workflows/ci.yml`) and multi-environment deployment (`.github/workflows/cd.yml`).
-- **Web Widget Embed (`web/`)**: A standalone static test page embedding Google's `chat-messenger` SDK against the deployed dev app, self-authenticating via the CXAS token broker — servable locally with zero dependencies.
+- **Custom Web Chat UI (`web/`)**: A hand-built, dependency-free chat page (`index.html`) that talks to a chat-proxy endpoint on the `shopping-user-service` microservice (which calls the CES Sessions API server-side) so it can render this app's rich widget tools itself. The original SDK-based page (`widget-embed.html`, embedding Google's `chat-messenger` SDK, self-authenticating via the CXAS token broker) is kept for reference.
 
 ---
 
@@ -169,9 +169,10 @@ ShoppingAssistantAgent/
 │   └── run_evals.py                 # Local multi-agent simulation evaluation runner
 ├── tests/
 │   └── test_services.py             # Unit test suite (unittest)
-├── web/                               # Standalone web widget embed test page (static, not part of the CXAS app)
-│   ├── index.html                   # Embeds Google's chat-messenger SDK against the deployed dev app
-│   └── README.md                    # Local run instructions & token-broker auth notes
+├── web/                               # Standalone web chat UI test pages (static, not part of the CXAS app)
+│   ├── index.html                   # Custom chat UI — talks to the microservice's chat-proxy endpoint
+│   ├── widget-embed.html            # Reference: embeds Google's chat-messenger SDK against the deployed dev app
+│   └── README.md                    # Local run instructions & auth notes for both pages
 └── scripts/
     ├── build_app.py                 # cxas-scrapi multi-environment deployer (dev, staging, prod); also
     │                                 # re-applies agent↔toolset bindings after push (see below)
@@ -411,18 +412,49 @@ uv run python scripts/build_app.py --env prod
 
 ---
 
-## 💬 Web Widget Embed (Local Test Page)
+## 💬 Web Chat UI (Local Test Pages)
 
-`web/` is a standalone static page — no build step, no dependencies, not touched by `cxas push`/`build_app.py` — that embeds Google's prebuilt `chat-messenger` SDK against a specific CXAS `Deployment` resource, for testing the deployed web widget outside of Studio's own Preview.
+`web/` holds two standalone static pages — no build step, no dependencies,
+neither touched by `cxas push`/`build_app.py`.
+
+### `index.html` — custom chat UI (primary)
+
+A hand-built chat UI that doesn't use Google's `chat-messenger` SDK at all.
+It POSTs each turn to a new `POST /api/v1/chat/{session_id}/messages`
+endpoint on the `shopping-user-service` microservice, which calls the CES
+Sessions API server-side (`cxas_scrapi.core.sessions.Sessions`, ADC
+credentials — the same mechanism `scripts/smoke_test_routing.py` uses) and
+returns agent text plus any widget-tool payload for the page to render
+itself. This exists because the SDK-embedded page can't render this app's
+rich widget tools (`show_product_carousel`, `show_product_comparison`,
+`show_order_summary`).
 
 ```bash
-cd web && python3 -m http.server 8000   # open http://localhost:8000
+cd microservice && uvicorn main:app --reload   # chat-proxy backend on :8080
+cd web && python3 -m http.server 8000          # open http://localhost:8000
+```
+
+See `web/README.md` for the `API_BASE` config point, the required
+`GCP_PROJECT_ID`/`CES_LOCATION`/`CES_APP_ID` env vars on the microservice,
+and an IAM prerequisite (the microservice's runtime service account needs a
+grant to call the CES SessionService) that isn't wired into
+`microservice/deploy.sh` yet.
+
+### `widget-embed.html` — chat-messenger SDK embed (reference)
+
+The original page, kept for reference: it embeds Google's prebuilt
+`chat-messenger` SDK against a specific CXAS `Deployment` resource, for
+testing the deployed web widget outside of Studio's own Preview. It's a
+fully-supported path, it just can't render this app's widget tools.
+
+```bash
+cd web && python3 -m http.server 8000   # open http://localhost:8000/widget-embed.html
 ```
 
 ### Authentication: the token broker, not a manually-supplied token
 The `chat-messenger` SDK **always requires an `accessToken`** on its registered context, client-side — regardless of the deployment's `security_settings.enable_public_access` flag. Without one, it throws `Error: No access token found.` before ever making a network call, and does so silently: no console error, no failed request, nothing but a swallowed exception (found by pausing the debugger on *caught* exceptions in the SDK's minified source). `enable_public_access` only controls what the *server* will accept — it doesn't remove the *client's* need for a token.
 
-The fix is **not** to mint a token once and hardcode it (`WidgetService.GenerateChatToken` tokens are scoped to a single session name, but the SDK generates its own session ID internally at runtime, so a static token won't match). Instead, `web/index.html` passes `tokenBroker: { enableTokenBroker: true }` into `chatSdk.prebuilts.ces.createContext({...})` — this makes the SDK automatically POST to the deployment's public `:generateChatToken` REST endpoint and self-manage the token whenever it opens a session:
+The fix is **not** to mint a token once and hardcode it (`WidgetService.GenerateChatToken` tokens are scoped to a single session name, but the SDK generates its own session ID internally at runtime, so a static token won't match). Instead, `web/widget-embed.html` passes `tokenBroker: { enableTokenBroker: true }` into `chatSdk.prebuilts.ces.createContext({...})` — this makes the SDK automatically POST to the deployment's public `:generateChatToken` REST endpoint and self-manage the token whenever it opens a session:
 
 ```js
 chatSdk.registerContext(
