@@ -81,6 +81,14 @@ def before_agent_callback(callback_context: CallbackContext) -> Optional[Content
     try:
         state = get_state(callback_context)
 
+        # RootAgent re-evaluates intent on every turn using {active_intent} as
+        # context, but nothing ever set it -- it was always blank, which likely
+        # contributed to terse cart follow-ups ("Add sku_1029 quantity 1 to
+        # cart") getting misclassified as ambiguous on turns after the first.
+        # Mark the session as an active shopping flow as soon as
+        # ShoppingAssistant is engaged, so RootAgent has a real signal.
+        set_state_var(callback_context, "active_intent", "shopping")
+
         user_id = state.get("user_id")
         if not user_id and hasattr(callback_context, "session") and hasattr(callback_context.session, "get_parameter"):
             user_id = callback_context.session.get_parameter("user_id", "")
