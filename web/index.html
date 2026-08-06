@@ -318,6 +318,9 @@
       cursor: pointer;
     }
     .order-summary .actions button.primary { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+    .order-summary .actions button:hover { background: #f0f0f0; }
+    .order-summary .actions button.primary:hover { background: #1558b0; }
+    .order-summary .actions button:disabled { opacity: 0.5; cursor: not-allowed; }
 
     #composer {
       display: flex;
@@ -558,12 +561,18 @@
 
       if (actions.primaryLabel || actions.secondaryLabel) {
         html += `<div class="actions">`;
-        if (actions.secondaryLabel) html += `<button type="button">${actions.secondaryLabel}</button>`;
-        if (actions.primaryLabel) html += `<button type="button" class="primary">${actions.primaryLabel}</button>`;
+        if (actions.secondaryLabel) html += `<button type="button" class="action-btn" data-label="${actions.secondaryLabel}">${actions.secondaryLabel}</button>`;
+        if (actions.primaryLabel) html += `<button type="button" class="primary action-btn" data-label="${actions.primaryLabel}">${actions.primaryLabel}</button>`;
         html += `</div>`;
       }
 
       wrap.innerHTML = html;
+      wrap.querySelectorAll(".action-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (btn.disabled) return;
+          sendMessage(btn.dataset.label);
+        });
+      });
       return wrap;
     }
 
@@ -656,7 +665,7 @@
     function setComposerEnabled(enabled) {
       messageInputEl.disabled = !enabled;
       sendBtnEl.disabled = !enabled;
-      document.querySelectorAll(".add-to-cart-btn, .qty-btn, .qty-input, .chip").forEach((el) => {
+      document.querySelectorAll(".add-to-cart-btn, .qty-btn, .qty-input, .chip, .action-btn").forEach((el) => {
         el.disabled = !enabled;
       });
     }
