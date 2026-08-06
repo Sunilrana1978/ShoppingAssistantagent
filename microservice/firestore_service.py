@@ -52,11 +52,14 @@ DEFAULT_MOCK_USERS = {
 class FirestoreService:
     """Service layer managing user profile and long-term memory operations in Firestore."""
 
-    def __init__(self, project_id: Optional[str] = None, collection_name: str = "user_profiles"):
+    def __init__(self, project_id: Optional[str] = None, collection_name: str = "user_profiles",
+                 feedback_collection_name: str = "feedback_submissions"):
         self.project_id = project_id or os.getenv("GCP_PROJECT_ID", "ecom-cx-agent")
         self.collection_name = collection_name
+        self.feedback_collection_name = feedback_collection_name
         self.db = None
         self._local_cache: Dict[str, Dict[str, Any]] = dict(DEFAULT_MOCK_USERS)
+        self._local_feedback_cache: Dict[str, Dict[str, Any]] = {}
 
         if _FIRESTORE_AVAILABLE:
             try:
@@ -165,6 +168,36 @@ class FirestoreService:
         profile["preferences"] = preferences
         self.save_user_profile(user_id, profile)
         return preferences
+
+    def add_feedback_entry(self, user_id: str, feedback_id: str, rating: int, comments: str) -> bool:
+        """Persist a customer feedback submission (rating + comments) to Firestore.
+
+        Stored in a dedicated collection (not on the user profile document) since
+        feedback is an append-only event log, not mutable profile state.
+        """
+        if not user_id or not feedback_id:
+            return False
+
+        user_id = user_id.strip('"').strip("'").strip()
+        entry = {
+            "user_id": user_id,
+            "feedback_id": feedback_id,
+            "rating": rating,
+            "comments": comments,
+            "recorded_at": datetime.utcnow().isoformat() + "Z",
+        }
+        self._local_feedback_cache[feedback_id] = entry
+
+        if self.db:
+            try:
+                doc_ref = self.db.collection(self.feedback_collection_name).document(feedback_id)
+                doc_ref.set(entry)
+                return True
+            except Exception as e:
+                logger.error(f"Firestore write error for feedback {feedback_id}: {e}")
+                return False
+
+        return True
 
 
 firestore_service = FirestoreService()

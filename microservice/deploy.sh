@@ -21,6 +21,7 @@ gcloud run deploy "${SERVICE_NAME}" \
     --region "${REGION}" \
     --allow-unauthenticated \
     --set-env-vars GCP_PROJECT_ID="${PROJECT_ID}" \
+    --set-secrets API_KEY="shopping-user-service-api-key:latest" \
     --quiet
 
 echo ""

@@ -1,0 +1,14 @@
+{
+  "displayName": "record_feedback",
+  "description": "Durably persist the customer's star rating and comments to Firestore. Call this after submit_feedback succeeds -- submit_feedback only validates and acknowledges the submission in-turn, it cannot itself reach durable storage.",
+  "openApiToolset": {
+    "openApiSchema": "toolsets/record_feedback/open_api_toolset/open_api_schema.yaml",
+    "apiAuthentication": {
+      "apiKeyConfig": {
+        "keyName": "X-API-Key",
+        "requestLocation": "HEADER",
+        "apiKeySecretVersion": "projects/331751626808/secrets/shopping-user-service-api-key/versions/latest"
+      }
+    }
+  }
+}

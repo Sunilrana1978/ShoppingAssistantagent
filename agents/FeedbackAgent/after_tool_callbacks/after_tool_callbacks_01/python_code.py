@@ -1,7 +1,10 @@
+import logging
 from typing import Any, Optional, Dict, List
 
 Tool = Any
 CallbackContext = Any
+
+logger = logging.getLogger(__name__)
 
 
 def get_state(callback_context: Any) -> dict:
@@ -97,9 +100,19 @@ def after_tool_callback(
         tool_output = tool_response if isinstance(tool_response, dict) else (input if isinstance(input, dict) else {})
         context_obj = callback_context if callback_context is not None else input
 
-    if tool_name == "submit_feedback":
-        if tool_output.get("status") == "success":
-            set_state_var(context_obj, "feedback_submitted", True)
-            set_state_var(context_obj, "last_feedback_id", tool_output.get("feedback_id"))
+    try:
+        if tool_name == "submit_feedback":
+            if tool_output.get("status") == "success":
+                set_state_var(context_obj, "feedback_submitted", True)
+                set_state_var(context_obj, "last_feedback_id", tool_output.get("feedback_id"))
+
+        elif tool_name in ("record_feedback", "record_feedback_record_feedback"):
+            if tool_output.get("status") == "success":
+                set_state_var(context_obj, "feedback_persisted", True)
+
+    except Exception:
+        logger.exception(
+            "after_tool_callback failed post-processing tool_name=%r; returning raw tool_output unmodified", tool_name
+        )
 
     return tool_output
