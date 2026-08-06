@@ -3,79 +3,730 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shopping Assistant — Web Widget Test</title>
+  <title>Shopping Assistant — Custom Chat UI</title>
   <style>
+    :root {
+      color-scheme: light;
+    }
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #f5f5f5;
+      background: #eef1f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 0;
     }
-    header {
+
+    #app {
+      width: 420px;
+      max-width: calc(100vw - 32px);
+      height: 720px;
+      max-height: 90vh;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: width 0.2s ease, height 0.2s ease;
+    }
+    #app.expanded {
+      width: 900px;
+      height: 92vh;
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid #eee;
+      flex-shrink: 0;
+    }
+    .chat-header-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #1a73e8;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .chat-header-text { min-width: 0; }
+    .chat-header-title { font-size: 15px; font-weight: 700; }
+    .chat-header-subtitle { font-size: 12px; color: #888; }
+    .chat-header-actions { margin-left: auto; flex-shrink: 0; }
+    .chat-header-btn {
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: transparent;
+      color: #888;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .chat-header-btn:hover { background: #f0f0f0; color: #1a1a1a; }
+
+    #toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 16px;
+      border-bottom: 1px solid #f0f0f0;
+      flex-shrink: 0;
+    }
+    #toolbar input {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    #toolbar button {
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #toolbar button:hover { background: #f0f0f0; }
+
+    #messages {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      background: #fafbfc;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: #c4c8cc #fafbfc;
+    }
+    #messages::-webkit-scrollbar { width: 8px; }
+    #messages::-webkit-scrollbar-track { background: #fafbfc; }
+    #messages::-webkit-scrollbar-thumb { background: #c4c8cc; border-radius: 10px; }
+    #messages::-webkit-scrollbar-thumb:hover { background: #a8adb3; }
+
+    .bubble-row { display: flex; align-items: flex-end; gap: 8px; }
+    .bubble-row.user { justify-content: flex-end; }
+    .bubble-row.agent { justify-content: flex-start; }
+    .avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .avatar.user { background: #1a73e8; color: #fff; }
+    .avatar.agent { background: #e8eaed; color: #5f6368; }
+    .bubble {
+      max-width: 78%;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+    .bubble-row.user .bubble {
+      background: #1a73e8;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .bubble-row.agent .bubble {
+      background: #f1f3f4;
+      color: #1a1a1a;
+      border-bottom-left-radius: 4px;
+    }
+    .bubble.error {
+      background: #fdecea;
+      color: #a61b1b;
+    }
+    .bubble.system {
+      background: transparent;
+      color: #888;
+      font-size: 12px;
       text-align: center;
-      padding: 24px 0;
+      max-width: 100%;
     }
-    header h1 {
-      font-size: 20px;
+
+    .widget { max-width: 100%; margin-top: 4px; }
+
+    .carousel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .product-card {
+      flex: 0 0 160px;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      padding: 8px;
+      background: #fff;
+      font-size: 12px;
+    }
+    .product-card img {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 6px;
+      background: #eee;
+    }
+    .product-card .title { font-weight: 600; margin-top: 6px; }
+    .product-card .subtitle { color: #666; margin-top: 2px; }
+    .product-card .price { margin-top: 4px; font-weight: 600; color: #1a73e8; }
+    .product-card a { color: #1a73e8; font-size: 11px; }
+    .product-card .add-to-cart-btn {
+      margin-top: 6px;
+      width: 100%;
+      padding: 6px 0;
+      border: 1px solid #1a73e8;
+      background: #fff;
+      color: #1a73e8;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .product-card .add-to-cart-btn:hover { background: #eaf1fd; }
+    .product-card .add-to-cart-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .product-card .qty-stepper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .product-card .qty-btn {
+      width: 22px;
+      height: 22px;
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 4px;
+      font-size: 13px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+    }
+    .product-card .qty-btn:hover { background: #f0f0f0; }
+    .product-card .qty-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .product-card .qty-input {
+      width: 30px;
+      text-align: center;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 12px;
+      padding: 2px 0;
+    }
+    .product-card .qty-input::-webkit-outer-spin-button,
+    .product-card .qty-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
       margin: 0;
     }
-    header p {
-      color: #666;
+
+    .typing-indicator { display: flex; gap: 4px; align-items: center; }
+    .typing-indicator span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #9aa0a6;
+      animation: typing-bounce 1.2s infinite ease-in-out;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.15s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes typing-bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+      30% { transform: translateY(-4px); opacity: 1; }
+    }
+
+    .chip-hint {
+      font-size: 11px;
+      color: #888;
+      margin: 2px 0 4px;
+    }
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-width: 78%;
+    }
+    .chip {
+      background: #eaf1fd;
+      color: #1a73e8;
+      border: none;
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .chip:hover { background: #d7e6fb; }
+    .chip:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .comparison-title { font-weight: 600; margin-bottom: 6px; font-size: 13px; }
+    table.comparison {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 12px;
+      background: #fff;
+    }
+    table.comparison th, table.comparison td {
+      border: 1px solid #e5e5e5;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.comparison th { background: #f7f7f7; }
+
+    .order-summary {
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+      font-size: 13px;
+    }
+    .order-summary .item { display: flex; gap: 10px; margin-bottom: 10px; }
+    .order-summary .item img {
+      width: 56px; height: 56px; object-fit: cover; border-radius: 6px; background: #eee;
+    }
+    .order-summary .costs div { display: flex; justify-content: space-between; padding: 2px 0; }
+    .order-summary .costs .total { font-weight: 700; border-top: 1px solid #eee; margin-top: 4px; padding-top: 6px; }
+    .order-summary .actions { margin-top: 10px; display: flex; gap: 8px; }
+    .order-summary .actions button {
+      padding: 7px 16px;
+      border-radius: 999px;
+      border: 1px solid #ddd;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .order-summary .actions button.primary { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+    .order-summary .actions button:hover { background: #f0f0f0; }
+    .order-summary .actions button.primary:hover { background: #1558b0; }
+    .order-summary .actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #composer {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 12px 16px;
+      border-top: 1px solid #eee;
+      flex-shrink: 0;
+    }
+    #composer input {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 16px;
+      border: 1px solid #ddd;
+      border-radius: 999px;
       font-size: 14px;
+      background: #f5f5f5;
+    }
+    #composer button {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: none;
+      background: #1a73e8;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    #composer button:hover { background: #1558b0; }
+    #composer button:disabled, #composer input:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   </style>
-
-  <script defer
-    src="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/chat-messenger.js">
-  </script>
-  <link rel="stylesheet" href="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/themes/chat-messenger-default.css">
-  <link rel="stylesheet" href="https://www.gstatic.com/chat-messenger/sdk/prod/v1.16/themes/chat-messenger-layout.css">
-  <script>
-    // The deployment has security_settings.enable_public_access = true, so
-    // the built-in token broker can fetch a chat token itself by POSTing to
-    // the deployment's public :generateChatToken REST endpoint — no custom
-    // backend or manually-supplied accessToken needed for this dev widget.
-    window.addEventListener("chat-messenger-loaded", () => {
-      chatSdk.registerContext(
-        chatSdk.prebuilts.ces.createContext({
-          deploymentName: "projects/331751626808/locations/us/apps/shopping-assistant-app-dev/deployments/a5ea201d-d892-4594-a986-ec052c289bd5",
-          tokenBroker: {
-            enableTokenBroker: true
-          }
-        }),
-      );
-    });
-  </script>
 </head>
 <body>
-  <header>
-    <h1>Shopping Assistant Agent</h1>
-    <p>Local test page for the deployed CXAS web widget (dev environment)</p>
-  </header>
+  <div id="app">
+    <div class="chat-header">
+      <div class="chat-header-avatar">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2a1 1 0 011 1v1.1A6 6 0 0119 10v1h1a1 1 0 011 1v3a1 1 0 01-1 1h-1v1a2 2 0 01-2 2H7a2 2 0 01-2-2v-1H4a1 1 0 01-1-1v-3a1 1 0 011-1h1v-1a6 6 0 016-5.9V3a1 1 0 011-1zM9 12a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"/></svg>
+      </div>
+      <div class="chat-header-text">
+        <div class="chat-header-title">Shopping Assistant</div>
+        <div class="chat-header-subtitle">Typically replies instantly</div>
+      </div>
+      <div class="chat-header-actions">
+        <button id="expandBtn" type="button" class="chat-header-btn" aria-label="Expand chat"></button>
+      </div>
+    </div>
+    <div id="toolbar">
+      <input id="userIdInput" type="text" placeholder="user_id (optional) — leave blank for guest">
+      <button id="newChatBtn" type="button">New chat</button>
+    </div>
+    <div id="messages"></div>
+    <form id="composer">
+      <input id="messageInput" type="text" placeholder="Type a message…" autocomplete="off">
+      <button id="sendBtn" type="submit" aria-label="Send">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+      </button>
+    </form>
+  </div>
 
-  <!-- Update the url-allowlist attribute with a comma-separated list of origins allowed to render images -->
-  <chat-messenger
-    url-allowlist="*"
-  >
-    <chat-messenger-container
-      chat-title="Shopping Assitant"
-      chat-title-icon="https://gstatic.com/dialogflow-console/common/assets/ccai-favicons/conversational_agents.png"
-      enable-file-upload
-      enable-audio-input
-    >
-      <chat-reset-session-button
-        slot="titlebar-actions"
-        title-text="Start new chat"
-      ></chat-reset-session-button>
-      <chat-toggle-dialog-button
-        slot="titlebar-actions"
-        title-text-expanded="Collapse"
-        title-text-collapsed="Expand"
-      ></chat-toggle-dialog-button>
-      <chat-messenger-close-button
-        slot="titlebar-actions"
-        title-text="Close"
-      ></chat-messenger-close-button>
-    </chat-messenger-container>
-  </chat-messenger>
+  <script>
+    // Base URL of the shopping-user-service microservice (see microservice/deploy.sh
+    // for the deployed Cloud Run URL). Defaults to a local `uvicorn main:app --reload`.
+    const API_BASE = "http://localhost:8080";
+
+    const messagesEl = document.getElementById("messages");
+    const composerEl = document.getElementById("composer");
+    const messageInputEl = document.getElementById("messageInput");
+    const sendBtnEl = document.getElementById("sendBtn");
+    const userIdInputEl = document.getElementById("userIdInput");
+    const newChatBtnEl = document.getElementById("newChatBtn");
+    const expandBtnEl = document.getElementById("expandBtn");
+    const appEl = document.getElementById("app");
+
+    let sessionId = crypto.randomUUID();
+
+    const EXPAND_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>`;
+    const COLLAPSE_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v4a1 1 0 01-1 1H4M20 8h-4a1 1 0 01-1-1V3M4 16h4a1 1 0 011 1v4M15 20v-4a1 1 0 011-1h4"/></svg>`;
+
+    expandBtnEl.innerHTML = EXPAND_ICON_SVG;
+    expandBtnEl.addEventListener("click", () => {
+      const isExpanded = appEl.classList.toggle("expanded");
+      expandBtnEl.innerHTML = isExpanded ? COLLAPSE_ICON_SVG : EXPAND_ICON_SVG;
+      expandBtnEl.setAttribute("aria-label", isExpanded ? "Collapse chat" : "Expand chat");
+    });
+
+    const USER_ICON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.4c-3.3 0-9.8 1.6-9.8 4.9v2.5h19.6v-2.5c0-3.3-6.5-4.9-9.8-4.9z"/></svg>`;
+    const AGENT_ICON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2a1 1 0 011 1v1.1A6 6 0 0119 10v1h1a1 1 0 011 1v3a1 1 0 01-1 1h-1v1a2 2 0 01-2 2H7a2 2 0 01-2-2v-1H4a1 1 0 01-1-1v-3a1 1 0 011-1h1v-1a6 6 0 016-5.9V3a1 1 0 011-1zM9 12a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"/></svg>`;
+
+    function createAvatar(role) {
+      const avatar = document.createElement("div");
+      avatar.className = `avatar ${role}`;
+      avatar.innerHTML = role === "user" ? USER_ICON_SVG : AGENT_ICON_SVG;
+      return avatar;
+    }
+
+    function addBubble(role, text) {
+      const isUser = role === "user";
+      const row = document.createElement("div");
+      row.className = `bubble-row ${isUser ? "user" : "agent"}`;
+      const bubble = document.createElement("div");
+      bubble.className = `bubble ${role === "error" ? "error" : ""}`;
+      bubble.textContent = text;
+      const avatar = createAvatar(isUser ? "user" : "agent");
+      if (isUser) {
+        row.appendChild(bubble);
+        row.appendChild(avatar);
+      } else {
+        row.appendChild(avatar);
+        row.appendChild(bubble);
+      }
+      messagesEl.appendChild(row);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return row;
+    }
+
+    function addSystemNote(text) {
+      const row = document.createElement("div");
+      row.className = "bubble-row agent";
+      const bubble = document.createElement("div");
+      bubble.className = "bubble system";
+      bubble.textContent = text;
+      row.appendChild(bubble);
+      messagesEl.appendChild(row);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function money(amount) {
+      if (!amount) return "";
+      const units = amount.units ?? 0;
+      const nanos = amount.nanos ?? 0;
+      const value = units + nanos / 1e9;
+      const code = amount.currencyCode || "USD";
+      return `${value.toFixed(2)} ${code}`;
+    }
+
+    function renderCarousel(widget) {
+      const wrap = document.createElement("div");
+      wrap.className = "widget carousel";
+      (widget.productDetails || []).forEach((p) => {
+        const card = document.createElement("div");
+        card.className = "product-card";
+        const img = (p.imageUris && p.imageUris[0]) || "";
+        card.innerHTML = `
+          ${img ? `<img src="${img}" alt="${p.title || ""}">` : ""}
+          <div class="title">${p.title || ""}</div>
+          ${p.subtitle ? `<div class="subtitle">${p.subtitle}</div>` : ""}
+          ${p.price ? `<div class="price">${p.price}</div>` : ""}
+          ${p.uri ? `<a href="${p.uri}" target="_blank" rel="noopener">View</a>` : ""}
+          ${p.productId ? `
+            <div class="qty-stepper">
+              <button type="button" class="qty-btn qty-dec">−</button>
+              <input type="number" class="qty-input" value="1" min="1" max="20">
+              <button type="button" class="qty-btn qty-inc">+</button>
+            </div>
+            <button type="button" class="add-to-cart-btn" data-sku="${p.productId}">Add to cart</button>
+          ` : ""}
+        `;
+        wrap.appendChild(card);
+      });
+      wrap.addEventListener("click", (e) => {
+        const card = e.target.closest(".product-card");
+        if (!card) return;
+        const qtyInput = card.querySelector(".qty-input");
+
+        if (e.target.closest(".qty-dec")) {
+          qtyInput.value = Math.max(1, (parseInt(qtyInput.value, 10) || 1) - 1);
+          return;
+        }
+        if (e.target.closest(".qty-inc")) {
+          qtyInput.value = Math.min(20, (parseInt(qtyInput.value, 10) || 1) + 1);
+          return;
+        }
+        const btn = e.target.closest(".add-to-cart-btn");
+        if (!btn || btn.disabled) return;
+        const qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+        sendMessage(`Add ${btn.dataset.sku} quantity ${qty} to cart`);
+      });
+      return wrap;
+    }
+
+    function specText(spec) {
+      if (!spec) return "";
+      if (spec.text) return spec.text;
+      if (spec.image) return spec.image.altText || "(image)";
+      if (spec.anchor) return spec.anchor.displayText || "(link)";
+      return "";
+    }
+
+    function renderComparison(widget) {
+      const wrap = document.createElement("div");
+      wrap.className = "widget";
+      const products = widget.productDetails || [];
+      const features = widget.features || [];
+
+      let html = "";
+      if (widget.title) html += `<div class="comparison-title">${widget.title}</div>`;
+      html += `<table class="comparison"><thead><tr><th>Feature</th>`;
+      products.forEach((p) => { html += `<th>${p.title || ""}</th>`; });
+      html += `</tr></thead><tbody>`;
+      html += `<tr><td>Price</td>${products.map((p) => `<td>${p.price || ""}</td>`).join("")}</tr>`;
+      features.forEach((f) => {
+        html += `<tr><td>${f.label || ""}</td>`;
+        (f.productSpecs || []).forEach((s) => { html += `<td>${specText(s)}</td>`; });
+        html += `</tr>`;
+      });
+      html += `</tbody></table>`;
+      wrap.innerHTML = html;
+      return wrap;
+    }
+
+    function renderOrderSummary(widget) {
+      const wrap = document.createElement("div");
+      wrap.className = "widget order-summary";
+      const item = widget.productItem || {};
+      const costs = widget.costBreakdown || {};
+      const actions = widget.actions || {};
+
+      let html = `<div class="item">`;
+      if (item.imageUri) html += `<img src="${item.imageUri}" alt="${item.title || ""}">`;
+      html += `<div><div style="font-weight:600">${item.title || ""}</div>`;
+      if (item.subtitle) html += `<div style="color:#666;font-size:12px">${item.subtitle}</div>`;
+      if (item.price) html += `<div style="margin-top:4px">${money(item.price)}</div>`;
+      html += `</div></div>`;
+
+      html += `<div class="costs">`;
+      if (costs.subtotal) html += `<div><span>Subtotal</span><span>${money(costs.subtotal)}</span></div>`;
+      if (costs.discount) html += `<div><span>Discount</span><span>-${money(costs.discount)}</span></div>`;
+      if (costs.shipping) html += `<div><span>Shipping</span><span>${money(costs.shipping)}</span></div>`;
+      if (costs.salesTax) html += `<div><span>Tax</span><span>${money(costs.salesTax)}</span></div>`;
+      if (costs.total) html += `<div class="total"><span>Total</span><span>${money(costs.total)}</span></div>`;
+      html += `</div>`;
+
+      if (actions.primaryLabel || actions.secondaryLabel) {
+        html += `<div class="actions">`;
+        if (actions.secondaryLabel) html += `<button type="button" class="action-btn" data-label="${actions.secondaryLabel}">${actions.secondaryLabel}</button>`;
+        if (actions.primaryLabel) html += `<button type="button" class="primary action-btn" data-label="${actions.primaryLabel}">${actions.primaryLabel}</button>`;
+        html += `</div>`;
+      }
+
+      wrap.innerHTML = html;
+      wrap.querySelectorAll(".action-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (btn.disabled) return;
+          sendMessage(btn.dataset.label);
+        });
+      });
+      return wrap;
+    }
+
+    // The CES Sessions API surfaces a WidgetTool call's own arguments back as
+    // the turn's "custom payload" (cxas_scrapi ParsedSessionResponse.custom_payloads),
+    // plus a platform-injected `type` field derived from the tool's widgetType —
+    // confirmed live for the carousel: {"type": "product_detail_carousel", ...}
+    // even though show_product_carousel.json's own params don't declare `type`.
+    // Comparison's exact `type` string wasn't confirmed live (GCP quota-limited
+    // during testing), so it's matched by its schema-guaranteed `features` field
+    // instead, which is reliable regardless of the platform's naming.
+    function renderWidget(widget) {
+      if (!widget) return null;
+      const type = (widget.type || "").toLowerCase();
+      if (type.includes("order_summary") || widget.costBreakdown) {
+        return renderOrderSummary(widget);
+      }
+      if (type.includes("comparison") || widget.features) {
+        return renderComparison(widget);
+      }
+      if (type.includes("carousel") || widget.productDetails) {
+        return renderCarousel(widget);
+      }
+      console.warn("Unrecognized widget payload shape:", widget);
+      return null;
+    }
+
+    const CATEGORY_CLAUSE_RE = /\s*(?:across\s+)?categories like ([^.!?]+)([.!?])/i;
+
+    function extractCategoryChips(text) {
+      const match = text.match(CATEGORY_CLAUSE_RE);
+      if (!match) return null;
+      const chips = match[1]
+        .split(",")
+        .map((s) => s.replace(/^\s*and\s+/i, "").trim())
+        .filter(Boolean);
+      return chips.length ? chips : null;
+    }
+
+    function stripCategoryClause(text) {
+      return text.replace(CATEGORY_CLAUSE_RE, "$2");
+    }
+
+    function addChipRow(chips) {
+      const hintRow = document.createElement("div");
+      hintRow.className = "bubble-row agent";
+      const hint = document.createElement("div");
+      hint.className = "chip-hint";
+      hint.textContent = "Tap a category to see what's available:";
+      hintRow.appendChild(hint);
+      messagesEl.appendChild(hintRow);
+
+      const row = document.createElement("div");
+      row.className = "bubble-row agent";
+      const wrap = document.createElement("div");
+      wrap.className = "chip-row";
+      chips.forEach((c) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "chip";
+        chip.textContent = c.charAt(0).toUpperCase() + c.slice(1);
+        chip.addEventListener("click", () => {
+          if (chip.disabled) return;
+          sendMessage(`Show me ${c} products`);
+        });
+        wrap.appendChild(chip);
+      });
+      row.appendChild(wrap);
+      messagesEl.appendChild(row);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function addAgentTurn(result) {
+      if (result.text) {
+        const chips = extractCategoryChips(result.text);
+        addBubble("agent", chips ? stripCategoryClause(result.text) : result.text);
+        if (chips) addChipRow(chips);
+      }
+      if (result.widget) {
+        const el = renderWidget(result.widget);
+        if (el) messagesEl.appendChild(el);
+      }
+      if (result.session_ended) {
+        addSystemNote("Session ended. Start a new chat to continue.");
+        setComposerEnabled(false);
+      }
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function setComposerEnabled(enabled) {
+      messageInputEl.disabled = !enabled;
+      sendBtnEl.disabled = !enabled;
+      document.querySelectorAll(".add-to-cart-btn, .qty-btn, .qty-input, .chip, .action-btn").forEach((el) => {
+        el.disabled = !enabled;
+      });
+    }
+
+    function addTypingIndicator() {
+      const row = document.createElement("div");
+      row.className = "bubble-row agent";
+      const bubble = document.createElement("div");
+      bubble.className = "bubble typing-indicator";
+      bubble.innerHTML = `<span></span><span></span><span></span>`;
+      row.appendChild(createAvatar("agent"));
+      row.appendChild(bubble);
+      messagesEl.appendChild(row);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return row;
+    }
+
+    async function sendMessage(text, { showUserBubble = true } = {}) {
+      if (showUserBubble) addBubble("user", text);
+      const userId = userIdInputEl.value.trim();
+      setComposerEnabled(false);
+      const typingRow = addTypingIndicator();
+
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/chat/${sessionId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, user_id: userId || null }),
+        });
+        if (!res.ok) {
+          const detail = await res.text();
+          throw new Error(`${res.status}: ${detail}`);
+        }
+        const result = await res.json();
+        typingRow.remove();
+        addAgentTurn(result);
+      } catch (err) {
+        typingRow.remove();
+        addBubble("error", `Failed to reach the assistant: ${err.message}`);
+      } finally {
+        setComposerEnabled(true);
+        messageInputEl.focus();
+      }
+    }
+
+    composerEl.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = messageInputEl.value.trim();
+      if (!text) return;
+      messageInputEl.value = "";
+      sendMessage(text);
+    });
+
+    newChatBtnEl.addEventListener("click", () => {
+      sessionId = crypto.randomUUID();
+      messagesEl.innerHTML = "";
+      setComposerEnabled(true);
+      const userId = userIdInputEl.value.trim();
+      addSystemNote(`New chat started for ${userId || "guest"}.`);
+      sendMessage("hi", { showUserBubble: false });
+    });
+  </script>
 </body>
 </html>
